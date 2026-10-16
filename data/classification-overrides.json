@@ -1,0 +1,10 @@
+{
+  "_comment": "Optional manual corrections for the automatic classifier. Key = topic_id from the question bank. Value = section-slug or section-slug/topic-slug (slugs are shown in the import report: POST /api/admin/import). Remove an entry to fall back to automatic classification.",
+  "csharp": "backend-dotnet/csharp-depth",
+  "azure": "cloud-microsoft-azure",
+  "performance": "backend-dotnet",
+  "background": "backend-dotnet",
+  "resilience": "distributed-systems-and-messaging",
+  "iis": "legacy-modernization",
+  "leadership": "software-design"
+}

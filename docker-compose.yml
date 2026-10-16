@@ -1,0 +1,31 @@
+name: interviewforge
+
+services:
+  interviewforge:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        RUN_TESTS: ${RUN_TESTS:-true}
+    image: interviewforge:latest
+    container_name: interviewforge
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      ASPNETCORE_URLS: http://+:${APP_PORT:-8888}
+    ports:
+      - "${HOST_PORT:-8888}:${APP_PORT:-8888}"
+    volumes:
+      # SQLite database (and optionally your own copies of the seed Markdown files) live here.
+      - ./data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:${APP_PORT:-8888}/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

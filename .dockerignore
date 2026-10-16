@@ -1,0 +1,12 @@
+**/bin
+**/obj
+**/node_modules
+**/dist
+**/.angular
+**/TestResults
+.git
+.env
+data/*.db*
+data-local
+backups
+src/InterviewForge.Api/wwwroot
