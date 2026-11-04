@@ -1435,6 +1435,11 @@ to discuss and demonstrate confidently.
 -   REST
 -   API design
 -   Authentication / Authorization
+-   Configuration / Options pattern
+-   HttpClientFactory
+-   Garbage collection and memory basics
+-   Concurrency primitives (lock, SemaphoreSlim, Interlocked, Channels)
+-   Exception handling strategy
 
 ### Database
 
@@ -1444,6 +1449,8 @@ to discuss and demonstrate confidently.
 -   Transactions
 -   Concurrency
 -   EF Core performance
+-   EF Core migrations in production (expand and contract)
+-   Parameter sniffing and execution plans
 
 ### Architecture
 
@@ -1487,6 +1494,8 @@ to discuss and demonstrate confidently.
 -   RBAC
 -   Secrets management
 -   OWASP fundamentals
+-   Broken access control (IDOR, mass assignment)
+-   Multi-tenant isolation
 
 ### Testing
 
@@ -1522,6 +1531,16 @@ to discuss and demonstrate confidently.
 -   Production troubleshooting
 -   Architecture decision making
 -   Technical mentoring
+-   Kafka fundamentals (partitions, consumer groups, offsets)
+-   Cosmos DB partitioning and PostgreSQL for .NET developers
+-   Feature flags and trunk-based development
+-   Software supply-chain security (SBOM, SCA, signed artifacts)
+-   Contract testing and load testing
+-   Multi-tenant SaaS design
+-   Bulkhead, disaster recovery (RPO/RTO) and chaos engineering
+-   Memory-leak and high-CPU diagnosis (dotnet-counters, dotnet-dump)
+-   Capacity estimation and classic system design problems
+-   Prompt injection and LLM application security
 
 ------------------------------------------------------------------------
 
@@ -1546,6 +1565,8 @@ to discuss and demonstrate confidently.
 -   SharePoint
 -   SSRS
 -   SSIS
+-   Azure Functions plans and Durable Functions
+-   .NET Aspire, Minimal APIs and Native AOT awareness
 
 The resumes demonstrate unusually broad frontend exposure across
 Angular, Vue and React, so maintaining strong working knowledge of at
@@ -1568,6 +1589,9 @@ modernization:
 -   jQuery
 -   SSRS
 -   SharePoint on-premises
+-   Kerberos delegation and Windows authentication (IIS)
+-   NuGet / CVE remediation on .NET Framework 4.8 (packages.config, binding redirects)
+-   .NET Framework to modern .NET migration (Upgrade Assistant, YARP, System.Web adapters)
 
 The early-career resumes show significant use of ASP.NET, ADO.NET,
 VB.NET, Silverlight, SQL Server and jQuery.
@@ -1590,6 +1614,10 @@ separately noted above. They are recommended additions to make a 10-year
 -   .NET Aspire awareness
 -   Resilience / Polly concepts
 -   OpenTelemetry
+-   HybridCache and output caching
+-   Span, Memory and ArrayPool for allocation reduction
+-   System.Threading.Channels
+-   Source generators (System.Text.Json, Regex)
 
 ## Architecture
 
@@ -1606,11 +1634,21 @@ separately noted above. They are recommended additions to make a 10-year
 ## Messaging
 
 -   Kafka
--   Azure Service Bus deep dive
+-   Azure Service Bus deep dive (sessions, duplicate detection, peek-lock)
 -   RabbitMQ deep dive
+-   Event Grid vs Event Hubs vs Service Bus vs Storage Queues
+
+## Data stores
+
+-   Cosmos DB (partition key, RUs, consistency levels)
+-   PostgreSQL (MVCC, JSONB, Npgsql)
+-   Partitioning and sharding
+-   Polyglot persistence
 
 ## Cloud / Infrastructure
 
+-   Azure SQL failover groups and geo-redundancy
+-   Azure Container Apps
 -   Terraform
 -   Bicep
 -   Helm
@@ -1621,6 +1659,9 @@ separately noted above. They are recommended additions to make a 10-year
 
 ## DevOps / Security
 
+-   Trunk-based development and feature flags
+-   SBOM and dependency auditing (NuGet audit, Dependabot)
+-   OIDC federation for pipelines (no stored secrets)
 -   GitHub Actions
 -   SonarQube
 -   Container image scanning
@@ -1632,8 +1673,9 @@ separately noted above. They are recommended additions to make a 10-year
 -   xUnit
 -   Testcontainers
 -   Playwright
--   Contract testing
--   Load testing
+-   Contract testing (Pact)
+-   Load testing (k6, Azure Load Testing, NBomber)
+-   Flaky-test management
 
 ## AI
 
@@ -1645,6 +1687,8 @@ separately noted above. They are recommended additions to make a 10-year
 -   AI agents
 -   MCP
 -   AI evaluation
+-   Prompt injection and OWASP Top 10 for LLM applications
+-   Semantic Kernel / Microsoft.Extensions.AI
 
 ------------------------------------------------------------------------
 
@@ -1869,3 +1913,134 @@ families:
 These categories are directly consolidated from the supplied resume
 variants rather than treating each variant as a separate skill profile.
 fileciteturn1file0L13-L23 fileciteturn2file3L680-L691
+
+------------------------------------------------------------------------
+
+# 31. Interview-Round Skills (Non-Technology Skills Tested)
+
+Senior and lead interviews test more than technology knowledge. The
+following skills are covered in the interview question bank and should
+be practiced explicitly.
+
+## Behavioral and situational
+
+-   STAR-structured storytelling
+-   Owning and communicating a production incident
+-   Blameless postmortems
+-   Disagreeing respectfully and committing
+-   Technical debt versus delivery trade-offs
+-   Explaining technical decisions to non-technical stakeholders
+-   Coaching an underperforming team member
+
+## Low-level design and live coding
+
+-   Thread-safe LRU cache
+-   Token bucket rate limiter
+-   Retry with exponential backoff and jitter
+-   Producer-consumer pipeline with bounded Channel
+-   Object-oriented design problems (parking lot, booking system)
+
+## System design practice problems
+
+-   URL shortener
+-   Notification system
+-   Flash sale / ticket booking
+-   Multi-tenant SaaS
+-   Capacity estimation (back-of-the-envelope)
+
+------------------------------------------------------------------------
+
+# 32. Skill Matrix to Question Bank Coverage Map
+
+Each major skill area is covered by one or more interview topics
+(`topic_id`) in the question bank.
+
+  -----------------------------------------------------------------------
+  Skill area                          Question bank topic_id
+  ----------------------------------- -----------------------------------
+  C#, async, exceptions               `csharp`
+
+  Modern .NET, GC, concurrency,       `modern-dotnet`
+  Aspire, AOT                         
+
+  ASP.NET Core, HttpClientFactory,    `aspnet-core`
+  configuration                       
+
+  REST, versioning, long-running      `rest`
+  operations                          
+
+  EF Core, migrations, bulk           `ef-core`
+  operations                          
+
+  SQL Server tuning                   `sql`
+
+  Transactions, concurrency,          `transactions`
+  overselling                         
+
+  Redis and caching                   `redis`
+
+  NoSQL, Cosmos DB, PostgreSQL,       `data-stores`
+  sharding                            
+
+  Microservices, distributed          `microservices`
+  monolith                            
+
+  RabbitMQ, Kafka, Service Bus        `messaging`
+
+  Orleans                             `orleans`
+
+  GraphQL, SignalR                    `graphql`
+
+  Frontend, BFF, token storage        `frontend`
+
+  Azure                               `azure`
+
+  AWS and multi-cloud                 `aws`
+
+  Docker                              `docker`
+
+  Kubernetes and AKS                  `kubernetes`
+
+  CI/CD, IaC, supply chain            `devops`
+
+  Identity and authorization          `security`
+
+  Application security, OWASP         `appsec`
+
+  Observability                       `observability`
+
+  Testing                             `testing`
+
+  SOLID, patterns, clean              `architecture`
+  architecture                        
+
+  CQRS, DDD, Saga, event sourcing     `ddd`
+
+  System design                       `system-design`
+
+  Performance engineering             `performance`
+
+  Resilience and DR                   `resilience`
+
+  Background processing               `background`
+
+  Legacy .NET and modernization       `legacy`
+
+  SSRS, SSIS, Power BI, SharePoint    `enterprise`
+
+  AI and LLM applications             `ai`
+
+  IIS and Windows hosting             `iis`
+
+  Code review, mentoring, ADRs        `leadership`
+
+  Behavioral interviews               `behavioral`
+
+  Low-level design and live coding    `lld-coding`
+
+  Comparisons and trade-offs          `comparisons`
+
+  Production scenarios                `scenarios`
+
+  Rapid-fire recall                   `rapid-fire`
+  -----------------------------------------------------------------------
