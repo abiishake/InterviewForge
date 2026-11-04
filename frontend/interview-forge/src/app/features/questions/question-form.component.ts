@@ -48,8 +48,8 @@ const URL_PATTERN = /^https?:\/\/[^\s]+$/i;
               <div formArrayName="references" class="stack">
                 @for (r of refs.controls; track $index; let i = $index) {
                   <div class="row" [formGroupName]="i">
-                    <input type="text" formControlName="title" placeholder="Title" style="flex:1" />
-                    <input type="url" formControlName="url" placeholder="https://…" style="flex:2" />
+                    <input type="text" formControlName="title" placeholder="Title" class="f1" />
+                    <input type="url" formControlName="url" placeholder="https://…" class="f2" />
                     <button type="button" class="btn sm ghost" (click)="refs.removeAt(i)" aria-label="Remove">✕</button>
                   </div>
                   @if (r.get('url')?.invalid && r.get('url')?.touched) { <div class="field-error">Use an absolute http(s) URL.</div> }

@@ -7,7 +7,7 @@ namespace InterviewForge.Application.Progress;
 
 public enum ReviewBucket { Due, Hard, NeedsReview, RecentlyIncorrect, Favorites, All }
 
-public sealed class ProgressService(IAppDbContext db, ICurrentUser user, IClock clock, ContentService content, ProgressQueries progress)
+public sealed class ProgressService(IAppDbContext db, ICurrentUser user, IClock clock, IUserClock userClock, ContentService content, ProgressQueries progress)
 {
     // SQLite deployment is single-instance. Serialize personal-state read/create/write
     // so simultaneous first updates cannot violate the per-user unique keys.
@@ -36,6 +36,11 @@ public sealed class ProgressService(IAppDbContext db, ICurrentUser user, IClock 
         if (req.Status is { } status)
         {
             p.Status = status;
+            if (status != ProgressStatus.Completed)
+            {
+                p.CompletedAt = null;
+                if (p.ReviewCount == 0) p.NextReviewAt = null;
+            }
             if (status == ProgressStatus.Completed) { p.CompletedAt ??= now; p.NextReviewAt ??= now.AddDays(4); }
             if (status == ProgressStatus.NeedsReview) p.NextReviewAt = now;
             if (status == ProgressStatus.NotStarted) { p.CompletedAt = null; p.NextReviewAt = null; }
@@ -127,11 +132,11 @@ public sealed class ProgressService(IAppDbContext db, ICurrentUser user, IClock 
         var overall = await progress.OverallAsync(ct);
         var sections = await content.GetSectionsAsync(ct);
         var (done, total) = await TopicCompletionAsync(ct);
-        var since = clock.UtcNow.Date.AddDays(-29);
+        var since = userClock.StartOfTodayUtc.AddDays(-29);
         var raw = await db.ActivityLogs.AsNoTracking().Where(a => a.UserId == user.UserId && a.OccurredAt >= since)
             .Select(a => a.OccurredAt).ToListAsync(ct);
-        var activity = raw.GroupBy(d => DateOnly.FromDateTime(d)).Select(g => new DailyActivityDto(g.Key, g.Count())).OrderBy(d => d.Date).ToList();
-        return new OverallProgressDto(overall, sections, done, total, activity);
+        var activity = raw.GroupBy(d => userClock.ToLocalDate(d)).Select(g => new DailyActivityDto(g.Key, g.Count())).OrderBy(d => d.Date).ToList();
+        return new OverallProgressDto(overall, sections, done, total, activity, userClock.Today);
     }
 
     public async Task<(int Completed, int Total)> TopicCompletionAsync(CancellationToken ct)
@@ -142,15 +147,15 @@ public sealed class ProgressService(IAppDbContext db, ICurrentUser user, IClock 
 
     public async Task<int> StreakAsync(CancellationToken ct)
     {
-        var since = clock.UtcNow.Date.AddDays(-400);
+        var since = userClock.StartOfTodayUtc.AddDays(-400);
         var dates = await db.ActivityLogs.AsNoTracking().Where(a => a.UserId == user.UserId && a.OccurredAt >= since)
             .Select(a => a.OccurredAt).ToListAsync(ct);
-        return ProgressCalculator.Streak(dates.Select(DateOnly.FromDateTime), clock.Today);
+        return ProgressCalculator.Streak(dates.Select(userClock.ToLocalDate), userClock.Today);
     }
 
     public async Task<int> CompletedTodayAsync(CancellationToken ct)
     {
-        var start = clock.UtcNow.Date;
+        var start = userClock.StartOfTodayUtc;
         return await db.UserProgress.AsNoTracking().CountAsync(p => p.UserId == user.UserId && p.Status == ProgressStatus.Completed && p.CompletedAt >= start, ct);
     }
 
@@ -158,7 +163,7 @@ public sealed class ProgressService(IAppDbContext db, ICurrentUser user, IClock 
     {
         var p = await db.UserProgress.FirstOrDefaultAsync(x => x.UserId == user.UserId && x.QuestionId == questionId, ct);
         if (p is not null) return p;
-        p = new UserProgress { UserId = user.UserId, QuestionId = questionId, Status = ProgressStatus.InProgress };
+        p = new UserProgress { UserId = user.UserId, QuestionId = questionId, Status = ProgressStatus.NotStarted };
         db.UserProgress.Add(p);
         return p;
     }

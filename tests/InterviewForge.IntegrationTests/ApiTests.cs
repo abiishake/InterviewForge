@@ -67,7 +67,7 @@ public class ApiTests(ApiFactory factory) : IClassFixture<ApiFactory>
         var detail = await Get($"/api/sections/{section.GetProperty("id").GetInt32()}");
         var efTopic = detail.GetProperty("topics").EnumerateArray().First(t => t.GetProperty("name").GetString() == "EF Core");
         var questions = await Get($"/api/topics/{efTopic.GetProperty("id").GetInt32()}/questions");
-        Assert.Equal(3, questions.GetProperty("totalCount").GetInt32());
+        Assert.Equal(5, questions.GetProperty("totalCount").GetInt32());
     }
 
     [Fact]

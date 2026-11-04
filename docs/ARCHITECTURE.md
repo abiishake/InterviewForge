@@ -51,6 +51,8 @@ Mutable progress is never stored on `Question`. Regenerating or deleting a plan 
 - No provider-specific features beyond EF Core's SQLite provider; queries avoid constructs SQLite cannot translate (e.g. APPLY).
 - Read paths use `AsNoTracking()` and DTO projections; writes that span several statements use explicit transactions.
 
-## Adding authentication later
+## Authentication and sessions
 
-All per-user tables already have `UserId`. Replace `LocalUser` with an `ICurrentUser` that reads `HttpContext.User`, add `AddAuthentication().AddJwtBearer()/AddCookie()` and `[Authorize]`; no schema change is required.
+Cookie authentication (`InterviewForge.Session`). Claims (id, name, roles, `sec` security stamp, `mcp` must-change-password, `tz` time zone) are written at sign-in and re-validated by `OnValidatePrincipal` against `AccountSnapshotCache` (30 s TTL, explicitly invalidated by every admin/self action). A missing or disabled account, or a changed stamp, rejects the cookie; changed roles/name/zone refresh it. `ClaimsUser` implements `ICurrentUser`; `UserClock` derives the user's local "today" from the `tz` claim. While `MustChangePassword` is set, middleware returns `403 PASSWORD_CHANGE_REQUIRED` for everything except `/api/auth/*`, `GET /api/account` and `POST /api/account/password`.
+
+Additional tables: `AuditLog` (append-only admin actions, no FKs so rows outlive accounts) and `AppSetting` (key/value, currently `Registration` = Open/Closed). `Account` carries `IsDisabled`, `SecurityStamp`, `MustChangePassword`, `LastLoginAt`, `PasswordChangedAt`, `UpdatedAt`, `TimeZone`; roles stay in `AccountRole`.

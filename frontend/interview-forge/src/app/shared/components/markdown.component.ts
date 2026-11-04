@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { AfterViewChecked, ChangeDetectionStrategy, Component, ElementRef, computed, inject, input } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import DOMPurify from 'dompurify';
 import { Marked } from 'marked';
@@ -18,10 +18,19 @@ DOMPurify.addHook('afterSanitizeAttributes', node => {
     }
   }
   if (node.tagName === 'IMG') {
+    // Remote images would let any contributor log viewers' IP addresses, so only inline data: images render.
     const src = node.getAttribute('src') ?? '';
-    if (!/^https:/i.test(src)) node.removeAttribute('src');
+    if (!/^data:image\/(png|jpeg|gif|webp);/i.test(src)) {
+      if (/^https?:/i.test(src) && node.parentNode) {
+        const link = node.ownerDocument.createElement('a');
+        link.setAttribute('href', src);
+        link.textContent = '[image: ' + (node.getAttribute('alt') || src) + ']';
+        node.parentNode.replaceChild(link, node);
+        return;
+      }
+      node.removeAttribute('src');
+    }
     node.setAttribute('loading', 'lazy');
-    node.setAttribute('referrerpolicy', 'no-referrer');
   }
 });
 
@@ -48,8 +57,32 @@ export function renderMarkdown(source: string | null | undefined): string {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `<div class="md" [innerHTML]="html()"></div>`
 })
-export class MarkdownComponent {
+export class MarkdownComponent implements AfterViewChecked {
   private sanitizer = inject(DomSanitizer);
+  private host = inject<ElementRef<HTMLElement>>(ElementRef);
+
+  /** Adds a "Copy" button to every code block once the sanitised HTML is in the DOM. */
+  ngAfterViewChecked(): void {
+    this.host.nativeElement.querySelectorAll('pre').forEach(pre => {
+      if (pre.parentElement?.classList.contains('code-wrap')) return;
+      const wrap = document.createElement('div');
+      wrap.className = 'code-wrap';
+      pre.replaceWith(wrap);
+      wrap.appendChild(pre);
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'copy-btn';
+      btn.textContent = 'Copy';
+      btn.setAttribute('aria-label', 'Copy code');
+      btn.addEventListener('click', () => {
+        navigator.clipboard?.writeText(pre.textContent ?? '').then(() => {
+          btn.textContent = 'Copied';
+          setTimeout(() => (btn.textContent = 'Copy'), 1500);
+        }, () => { btn.textContent = 'Failed'; });
+      });
+      wrap.appendChild(btn);
+    });
+  }
   readonly source = input<string | null | undefined>('');
   readonly html = computed<SafeHtml>(() => this.sanitizer.bypassSecurityTrustHtml(renderMarkdown(this.source())));
 }

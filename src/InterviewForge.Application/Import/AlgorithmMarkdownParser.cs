@@ -47,8 +47,9 @@ public static partial class AlgorithmMarkdownParser
         foreach (var raw in markdown.Replace("\r\n", "\n").Split('\n'))
         {
             var line = raw.TrimEnd();
-            if (line.TrimStart().StartsWith("```")) inFence = !inFence;
-            if (!inFence)
+            var fenceLine = MarkdownHelpers.IsFence(line);
+            if (fenceLine) inFence = !inFence;
+            if (!inFence && !fenceLine)
             {
                 var c = CategoryHeading().Match(line);
                 if (c.Success) { Flush(); category = c.Groups[1].Value.Trim(); continue; }

@@ -5,6 +5,13 @@ namespace InterviewForge.Application.Import;
 
 internal static partial class MarkdownHelpers
 {
+    /// <summary>True for a ``` or ~~~ fence delimiter line.</summary>
+    public static bool IsFence(string line)
+    {
+        var t = line.TrimStart();
+        return t.StartsWith("```", StringComparison.Ordinal) || t.StartsWith("~~~", StringComparison.Ordinal);
+    }
+
     // Pandoc renders an em-dash as "---"; accept ---, --, — and – as title separators.
     [GeneratedRegex(@"\s+(?:---|--|—|–)\s+")] public static partial Regex DashSeparator();
     [GeneratedRegex(@"^\s*(?:[-*+]|\d+\.)\s+(.*)$")] public static partial Regex Bullet();

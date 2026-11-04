@@ -80,9 +80,26 @@ public static partial class QuestionBankParser
             topicTitle = topicId = topicPriority = category = null; questions = new();
         }
 
+        var inFence = false;
         foreach (var raw in lines)
         {
             var line = raw.TrimEnd();
+            // Lines inside ``` / ~~~ fences are content only: '#' comments or '**Answer**' text there must not change structure.
+            var fenceLine = MarkdownHelpers.IsFence(line);
+            if (fenceLine) inFence = !inFence;
+            if (inFence || fenceLine)
+            {
+                if (qHeading is not null)
+                {
+                    switch (block)
+                    {
+                        case Block.Question: qLines.Add(line); break;
+                        case Block.Answer: aLines.Add(line); break;
+                        case Block.FollowUps: fLines.Add(line); break;
+                    }
+                }
+                continue;
+            }
             var tm = TopicHeading().Match(line);
             if (tm.Success) { FlushTopic(); topicTitle = tm.Groups[1].Value; continue; }
             if (AnyH1().IsMatch(line)) { FlushTopic(); continue; } // non-topic H1 ends current topic

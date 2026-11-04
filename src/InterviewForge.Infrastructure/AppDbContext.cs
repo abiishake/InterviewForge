@@ -27,6 +27,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<AccountRole> AccountRoles => Set<AccountRole>();
     public DbSet<ContentFeedback> Feedback => Set<ContentFeedback>();
     public DbSet<DeletedSeed> DeletedSeeds => Set<DeletedSeed>();
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<AppSetting> AppSettings => Set<AppSetting>();
 
     public async Task<IAppTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
     {
@@ -37,7 +39,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
     protected override void OnModelCreating(ModelBuilder b)
     {
-        b.Entity<Account>(e => { e.HasKey(x => x.Id); e.HasIndex(x => x.Email).IsUnique(); e.HasIndex(x => x.Username).IsUnique(); e.Property(x => x.Username).HasMaxLength(32); e.Property(x => x.Email).HasMaxLength(254); });
+        b.Entity<Account>(e => { e.HasKey(x => x.Id); e.HasIndex(x => x.Email).IsUnique(); e.HasIndex(x => x.Username).IsUnique(); e.Property(x => x.Username).HasMaxLength(32); e.Property(x => x.Email).HasMaxLength(254); e.Property(x => x.SecurityStamp).HasMaxLength(64); e.Property(x => x.TimeZone).HasMaxLength(64); });
+        b.Entity<AuditLog>(e => { e.HasKey(x => x.Id); e.Property(x => x.Action).HasMaxLength(64); e.Property(x => x.Detail).HasMaxLength(2048); e.HasIndex(x => x.At); e.HasIndex(x => new { x.TargetId, x.At }); });
+        b.Entity<AppSetting>(e => { e.HasKey(x => x.Key); e.Property(x => x.Key).HasMaxLength(64); e.Property(x => x.Value).HasMaxLength(512);
+            e.HasData(new AppSetting { Key = "Registration", Value = "Open", UpdatedAt = new DateTime(2026, 11, 1, 0, 0, 0, DateTimeKind.Utc) }); });
         b.Entity<AccountRole>(e => { e.HasKey(x => new { x.AccountId, x.Role }); e.HasOne<Account>().WithMany().HasForeignKey(x => x.AccountId).OnDelete(DeleteBehavior.Cascade); });
         b.Entity<ContentFeedback>(e => { e.HasIndex(x => new { x.UserId, x.Status }); e.HasOne<Account>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict); });
         b.Entity<DeletedSeed>().HasKey(x => new { x.Kind, x.Key });

@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace InterviewForge.Application;
 
-public sealed class DashboardService(IAppDbContext db, ICurrentUser user, IClock clock, PlanService plans, ProgressService progressService,
+public sealed class DashboardService(IAppDbContext db, ICurrentUser user, IClock clock, IUserClock userClock, PlanService plans, ProgressService progressService,
     ProgressQueries progress, ContentService content)
 {
     public async Task<DashboardDto> GetAsync(CancellationToken ct)
@@ -26,7 +26,7 @@ public sealed class DashboardService(IAppDbContext db, ICurrentUser user, IClock
 
         return new DashboardDto(plan, today, await progressService.StreakAsync(ct), await progressService.CompletedTodayAsync(ct),
             overall, topicsDone, topicsTotal, overall.Total - overall.Completed, overdue, review.DueNow, review.NeedsReview,
-            await ContinueAsync(today, ct), sections);
+            await ContinueAsync(today, ct), sections, userClock.Today);
     }
 
     /// <summary>Next incomplete question: today's plan first, then the most recently touched in-progress question, then the first untouched question.</summary>

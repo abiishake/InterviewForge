@@ -19,7 +19,7 @@ import { ToastService } from '../../core/services/toast.service';
       </div>
       <div class="card mt">
         <h3>API & health</h3>
-        <p class="muted">OpenAPI UI: <a href="/swagger" target="_blank" rel="noopener">/swagger</a> · Health: <a href="/health" target="_blank" rel="noopener">/health</a></p>
+        <p class="muted">OpenAPI document: <a href="/openapi/v1.json" target="_blank" rel="noopener">/openapi/v1.json</a> (Swagger UI only when <code>Api__ExposeDocs=true</code>) · Health: <a href="/health" target="_blank" rel="noopener">/health</a></p>
       </div>
       <div class="card mt">
         <h3>Keyboard shortcuts</h3>

@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 
 namespace InterviewForge.Application.Plans;
 
-public sealed class PlanService(IAppDbContext db, ICurrentUser user, IClock clock, ILogger<PlanService> logger)
+public sealed class PlanService(IAppDbContext db, ICurrentUser user, IClock clock, IUserClock userClock, ILogger<PlanService> logger)
 {
     public const int MaxDurationDays = 365;
     public const int MaxQuestionsPerDay = 200;
@@ -30,7 +30,7 @@ public sealed class PlanService(IAppDbContext db, ICurrentUser user, IClock cloc
     public async Task<IReadOnlyList<PlanDaySummaryDto>> GetDaysAsync(int planId, CancellationToken ct)
     {
         var plan = await LoadAsync(planId, ct, tracking: false);
-        var current = CurrentDay(plan, clock.Today);
+        var current = CurrentDay(plan, userClock.Today);
         var uid = user.UserId;
         var rows = await db.PlanDays.AsNoTracking().Where(d => d.PlanId == planId).OrderBy(d => d.DayNumber)
             .Select(d => new
@@ -57,7 +57,7 @@ public sealed class PlanService(IAppDbContext db, ICurrentUser user, IClock cloc
     internal async Task<PlanDayDetailDto?> GetTodayAsync(int planId, CancellationToken ct)
     {
         var plan = await LoadAsync(planId, ct, tracking: false);
-        var current = CurrentDay(plan, clock.Today);
+        var current = CurrentDay(plan, userClock.Today);
         var day = await db.PlanDays.AsNoTracking().FirstOrDefaultAsync(d => d.PlanId == planId && d.DayNumber == current, ct);
         return day is null ? null : await BuildDayAsync(plan, day, ct);
     }
@@ -65,7 +65,7 @@ public sealed class PlanService(IAppDbContext db, ICurrentUser user, IClock cloc
     public async Task<int> OverdueCountAsync(int planId, CancellationToken ct)
     {
         var plan = await LoadAsync(planId, ct, tracking: false);
-        var current = CurrentDay(plan, clock.Today);
+        var current = CurrentDay(plan, userClock.Today);
         var uid = user.UserId;
         return await db.PlanItems.AsNoTracking().CountAsync(i => i.PlanDay.PlanId == planId && i.PlanDay.DayNumber < current &&
             i.PlanDay.Status != PlanDayStatus.Skipped &&
@@ -83,7 +83,7 @@ public sealed class PlanService(IAppDbContext db, ICurrentUser user, IClock cloc
         var plan = new Plan
         {
             UserId = user.UserId, Name = req.Name.Trim(), DurationDays = req.DurationDays, QuestionsPerDay = req.QuestionsPerDay,
-            StudyMinutesPerDay = req.StudyMinutesPerDay, StartDate = req.StartDate ?? clock.Today, Status = PlanStatus.Active,
+            StudyMinutesPerDay = req.StudyMinutesPerDay, StartDate = req.StartDate ?? userClock.Today, Status = PlanStatus.Active,
             IsCurrent = req.MakeCurrent || !await db.Plans.AnyAsync(p => p.UserId == user.UserId && p.IsCurrent, ct),
             IncludeCompleted = req.IncludeCompleted,
             SelectedSectionIds = Join(req.SectionIds), SelectedTopicIds = Join(req.TopicIds)
@@ -110,7 +110,7 @@ public sealed class PlanService(IAppDbContext db, ICurrentUser user, IClock cloc
         plan.UpdatedAt = clock.UtcNow;
         await using var tx = await db.BeginTransactionAsync(ct);
         await db.SaveChangesAsync(ct);
-        if (req.Regenerate) await GenerateInternalAsync(plan, CurrentDay(plan, clock.Today), ct);
+        if (req.Regenerate) await GenerateInternalAsync(plan, CurrentDay(plan, userClock.Today), ct);
         await tx.CommitAsync(ct);
         return await ToDtoAsync(plan, ct);
     }
@@ -119,7 +119,7 @@ public sealed class PlanService(IAppDbContext db, ICurrentUser user, IClock cloc
     public async Task<GenerationResult> GenerateAsync(int id, int? fromDay, CancellationToken ct)
     {
         var plan = await LoadAsync(id, ct);
-        var start = fromDay ?? CurrentDay(plan, clock.Today);
+        var start = fromDay ?? CurrentDay(plan, userClock.Today);
         new Validator().Range("fromDay", start, 1, plan.DurationDays).ThrowIfInvalid();
         await using var tx = await db.BeginTransactionAsync(ct);
         var result = await GenerateInternalAsync(plan, start, ct);
@@ -146,7 +146,7 @@ public sealed class PlanService(IAppDbContext db, ICurrentUser user, IClock cloc
     public async Task<PlanDto> PauseAsync(int id, CancellationToken ct)
     {
         var plan = await LoadAsync(id, ct);
-        if (plan.Status != PlanStatus.Paused) { plan.Status = PlanStatus.Paused; plan.PausedOn = clock.Today; }
+        if (plan.Status != PlanStatus.Paused) { plan.Status = PlanStatus.Paused; plan.PausedOn = userClock.Today; }
         await db.SaveChangesAsync(ct);
         return await ToDtoAsync(plan, ct);
     }
@@ -155,7 +155,7 @@ public sealed class PlanService(IAppDbContext db, ICurrentUser user, IClock cloc
     {
         var plan = await LoadAsync(id, ct);
         if (plan.Status == PlanStatus.Paused && plan.PausedOn is { } pausedOn)
-            plan.PausedDays += Math.Max(0, clock.Today.DayNumber - pausedOn.DayNumber);
+            plan.PausedDays += Math.Max(0, userClock.Today.DayNumber - pausedOn.DayNumber);
         plan.Status = PlanStatus.Active; plan.PausedOn = null;
         await db.SaveChangesAsync(ct);
         return await ToDtoAsync(plan, ct);
@@ -165,7 +165,7 @@ public sealed class PlanService(IAppDbContext db, ICurrentUser user, IClock cloc
     public async Task<PlanDto> RestartAsync(int id, CancellationToken ct)
     {
         var plan = await LoadAsync(id, ct);
-        plan.StartDate = clock.Today; plan.PausedDays = 0; plan.PausedOn = null; plan.Status = PlanStatus.Active;
+        plan.StartDate = userClock.Today; plan.PausedDays = 0; plan.PausedOn = null; plan.Status = PlanStatus.Active;
         await using var tx = await db.BeginTransactionAsync(ct);
         await db.SaveChangesAsync(ct);
         await GenerateInternalAsync(plan, 1, ct);
@@ -188,7 +188,7 @@ public sealed class PlanService(IAppDbContext db, ICurrentUser user, IClock cloc
     public async Task MoveItemAsync(int id, int itemId, MoveItemRequest req, CancellationToken ct)
     {
         var plan = await LoadAsync(id, ct);
-        new Validator().Range("targetDayNumber", req.TargetDayNumber, 1, MaxDurationDays).ThrowIfInvalid();
+        new Validator().Range("targetDayNumber", req.TargetDayNumber, 1, Math.Min(MaxDurationDays, plan.DurationDays + 1)).ThrowIfInvalid();
         var item = await db.PlanItems.Include(i => i.PlanDay).FirstOrDefaultAsync(i => i.Id == itemId && i.PlanDay.PlanId == id, ct)
                    ?? throw NotFoundException.For("PlanItem", itemId);
         var target = await GetOrCreateDayAsync(plan, req.TargetDayNumber, ct);
@@ -201,7 +201,7 @@ public sealed class PlanService(IAppDbContext db, ICurrentUser user, IClock cloc
     public async Task<int> RescheduleUnfinishedAsync(int id, CancellationToken ct)
     {
         var plan = await LoadAsync(id, ct);
-        var current = CurrentDay(plan, clock.Today);
+        var current = CurrentDay(plan, userClock.Today);
         var pastItems = await db.PlanItems.Include(i => i.PlanDay).Where(i => i.PlanDay.PlanId == id && i.PlanDay.DayNumber < current).ToListAsync(ct);
         var target = await GetOrCreateDayAsync(plan, current, ct);
         var moved = await MoveIncompleteAsync(pastItems, target, ct);
@@ -296,7 +296,7 @@ public sealed class PlanService(IAppDbContext db, ICurrentUser user, IClock cloc
         var groups = items.GroupBy(i => new { i.TopicId, i.TopicName, i.SectionName })
             .Select(g => new TopicGroupDto(g.Key.TopicId, g.Key.TopicName, g.Key.SectionName, g.Count(), g.Count(x => x.Status == ProgressStatus.Completed)))
             .ToList();
-        var current = CurrentDay(plan, clock.Today);
+        var current = CurrentDay(plan, userClock.Today);
         var completed = items.Count(i => i.Status == ProgressStatus.Completed);
         var summary = new PlanDaySummaryDto(day.Id, day.DayNumber, DateOf(plan, day.DayNumber), EffectiveStatus(day.Status, items.Count, completed),
             day.Title, items.Count, completed, groups.Select(g => g.TopicName).ToList(), day.DayNumber == current, day.DayNumber < current);
@@ -312,8 +312,9 @@ public sealed class PlanService(IAppDbContext db, ICurrentUser user, IClock cloc
         var review = await db.PlanItems.CountAsync(i => i.PlanDay.PlanId == p.Id &&
             db.UserProgress.Any(x => x.UserId == uid && x.QuestionId == i.QuestionId && x.Status == ProgressStatus.NeedsReview), ct);
         var unscheduled = await UnscheduledAsync(p, ct);
-        return new PlanDto(p.Id, p.Name, p.DurationDays, p.QuestionsPerDay, p.StudyMinutesPerDay, p.StartDate, p.Status, p.IsCurrent,
-            CurrentDay(p, clock.Today), Split(p.SelectedSectionIds), Split(p.SelectedTopicIds), p.IncludeCompleted,
+        var status = p.Status == PlanStatus.Active && total > 0 && completed == total ? PlanStatus.Completed : p.Status;
+        return new PlanDto(p.Id, p.Name, p.DurationDays, p.QuestionsPerDay, p.StudyMinutesPerDay, p.StartDate, status, p.IsCurrent,
+            CurrentDay(p, userClock.Today), Split(p.SelectedSectionIds), Split(p.SelectedTopicIds), p.IncludeCompleted,
             new ProgressSummary(total, completed, review, 0), unscheduled);
     }
 

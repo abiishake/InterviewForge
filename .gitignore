@@ -25,3 +25,7 @@ src/InterviewForge.Api/wwwroot/
 .DS_Store
 .idea/
 .vscode/
+
+## Runtime key material (never commit)
+src/InterviewForge.Api/data/
+InterviewForge-v4-changes.zip

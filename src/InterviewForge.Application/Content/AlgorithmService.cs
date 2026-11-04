@@ -40,6 +40,7 @@ public sealed class AlgorithmService(IAppDbContext db, ICurrentUser user)
         var a = await db.Algorithms.FirstOrDefaultAsync(x => x.Slug == slug, ct) ?? throw NotFoundException.For("Algorithm", slug);
         ContentAccess.Ensure(user, a);
         if (!a.IsUserCreated) db.DeletedSeeds.Add(new DeletedSeed { Kind="Algorithm", Key=a.Slug });
+        foreach (var f in await db.Feedback.Where(f => f.Kind == "Algorithm" && f.ContentId == a.Id).ToListAsync(ct)) f.Status = "ContentDeleted";
         db.Algorithms.Remove(a); await db.SaveChangesAsync(ct);
     }
 }

@@ -75,6 +75,8 @@ public sealed record CreatePlanRequest(
 public sealed record UpdatePlanRequest(string? Name, int? DurationDays, int? QuestionsPerDay, int? StudyMinutesPerDay,
     IReadOnlyList<int>? SectionIds, IReadOnlyList<int>? TopicIds, bool? IncludeCompleted, bool Regenerate = true);
 
+public sealed record ContentImpactDto(int UsersWithProgress, int UsersWithNotes, int PlanItems);
+
 public sealed record PlanDto(int Id, string Name, int DurationDays, int QuestionsPerDay, int StudyMinutesPerDay, DateOnly StartDate,
     PlanStatus Status, bool IsCurrent, int CurrentDay, IReadOnlyList<int> SectionIds, IReadOnlyList<int> TopicIds, bool IncludeCompleted,
     ProgressSummary Progress, int UnscheduledCount);
@@ -105,13 +107,14 @@ public sealed record DashboardDto(
     int DueForReview,
     int NeedsReview,
     ContinueTargetDto? Continue,
-    IReadOnlyList<SectionDto> Sections);
+    IReadOnlyList<SectionDto> Sections,
+    DateOnly LocalDate);
 
 public sealed record ContinueTargetDto(int QuestionId, string QuestionText, string TopicName, string Reason);
 
 public sealed record ReviewOverviewDto(int TotalNeedingRevision, int Hard, int NeedsReview, int RecentlyIncorrect, int DueNow, int Favorites);
 
-public sealed record OverallProgressDto(ProgressSummary Overall, IReadOnlyList<SectionDto> Sections, int TopicsCompleted, int TopicsTotal, IReadOnlyList<DailyActivityDto> Activity);
+public sealed record OverallProgressDto(ProgressSummary Overall, IReadOnlyList<SectionDto> Sections, int TopicsCompleted, int TopicsTotal, IReadOnlyList<DailyActivityDto> Activity, DateOnly LocalDate);
 public sealed record DailyActivityDto(DateOnly Date, int Count);
 
 public sealed record SaveAlgorithmRequest(string Category, string Name, string ProblemStatement, string Explanation, string Approach,

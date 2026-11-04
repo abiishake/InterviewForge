@@ -1,3 +1,4 @@
+import { DialogService } from '../../core/services/dialog.service';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -6,10 +7,13 @@ import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
 import { QuestionListComponent } from '../../shared/components/ui.components';
+import { PaginationComponent } from '../../shared/ui/pagination.component';
+import { SkeletonComponent } from '../../shared/ui/skeleton.component';
+
 
 @Component({
   selector: 'app-my-content',
-  imports: [FormsModule, RouterLink, QuestionListComponent],
+  imports: [FormsModule, RouterLink, QuestionListComponent, PaginationComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="page">
@@ -20,15 +24,15 @@ import { QuestionListComponent } from '../../shared/components/ui.components';
       <div class="grid grid-2">
         <div class="card">
           <h3>New section</h3>
-          <div class="row"><input type="text" [(ngModel)]="sectionName" placeholder="e.g. Project Experience" style="flex:1" />
+          <div class="row"><input type="text" [(ngModel)]="sectionName" placeholder="e.g. Project Experience" class="f1" />
             <button class="btn" (click)="addSection()" [disabled]="!sectionName.trim()">Add</button></div>
         </div>
         <div class="card">
           <h3>New topic</h3>
           <div class="row">
-            <select [(ngModel)]="topicSectionId" style="flex:1"><option [ngValue]="0">Section…</option>
+            <select [(ngModel)]="topicSectionId" class="f1"><option [ngValue]="0">Section…</option>
               @for (s of sections(); track s.id) { <option [ngValue]="s.id">{{ s.name }}</option> }</select>
-            <input type="text" [(ngModel)]="topicName" placeholder="Topic name" style="flex:1" />
+            <input type="text" [(ngModel)]="topicName" placeholder="Topic name" class="f1" />
             <button class="btn" (click)="addTopic()" [disabled]="!topicName.trim() || !topicSectionId">Add</button></div>
         </div>
       </div>
@@ -49,15 +53,21 @@ import { QuestionListComponent } from '../../shared/components/ui.components';
       }
 
       <h2 class="mt-lg">My questions</h2>
-      <app-question-list [items]="questions()" emptyText="You haven't added any questions yet." />
+      <app-question-list [items]="questions()" [offset]="(page() - 1) * pageSize" emptyText="You haven't added any questions yet." />
+      <app-pagination [page]="page()" [pageSize]="pageSize" [total]="total()" (pageChange)="goPage($event)" />
     </div>`
 })
 export class MyContentComponent {
   private api = inject(ApiService);
   private toast = inject(ToastService);
+  private dialogs = inject(DialogService);
   readonly sections = signal<Section[]>([]);
   readonly topics = signal<Topic[]>([]);
   readonly questions = signal<QuestionSummary[]>([]);
+  readonly page = signal(1);
+  readonly total = signal(0);
+  readonly pageSize = 25;
+  goPage(p: number): void { this.page.set(p); this.load(); }
   private auth=inject(AuthService);
   readonly mySections = computed(() => this.sections().filter(s => s.createdByUserId===this.auth.user()?.id));
   readonly myTopics = computed(() => this.topics().filter(t => t.createdByUserId===this.auth.user()?.id));
@@ -68,26 +78,26 @@ export class MyContentComponent {
   load(): void {
     this.api.sections().subscribe(s => this.sections.set(s));
     this.api.topics().subscribe(t => this.topics.set(t));
-    this.api.questions({ filter: 'Mine', pageSize: 200 }).subscribe(p => this.questions.set(p.items));
+    this.api.questions({ filter: 'Mine', page: this.page(), pageSize: this.pageSize }).subscribe(p => { this.questions.set(p.items); this.total.set(p.totalCount); });
   }
 
   addSection(): void { this.api.createSection(this.sectionName.trim()).subscribe(() => { this.sectionName = ''; this.toast.show('Section created', 'ok'); this.load(); }); }
   addTopic(): void { this.api.createTopic(this.topicSectionId, this.topicName.trim()).subscribe(() => { this.topicName = ''; this.toast.show('Topic created', 'ok'); this.load(); }); }
 
-  renameSection(s: Section): void {
-    const name = prompt('Section name', s.name)?.trim(); if (!name) return;
+  async renameSection(s: Section): Promise<void> {
+    const name = await this.dialogs.prompt({ title: 'Rename section', inputLabel: 'Section name', value: s.name }); if (!name) return;
     this.api.updateSection(s.id, name, s.description).subscribe(() => this.load());
   }
-  deleteSection(s: Section): void {
-    if (!confirm(`Delete section "${s.name}" with all its topics and your questions?`)) return;
+  async deleteSection(s: Section): Promise<void> {
+    if (!await this.dialogs.confirm({ title: `Delete section "${s.name}"?`, message: 'Its topics and your questions are deleted. If other members added content to it, the server refuses.', confirmLabel: 'Delete', danger: true })) return;
     this.api.deleteSection(s.id).subscribe(() => this.load());
   }
-  renameTopic(t: Topic): void {
-    const name = prompt('Topic name', t.name)?.trim(); if (!name) return;
+  async renameTopic(t: Topic): Promise<void> {
+    const name = await this.dialogs.prompt({ title: 'Rename topic', inputLabel: 'Topic name', value: t.name }); if (!name) return;
     this.api.updateTopic(t.id, t.sectionId, name, t.description).subscribe(() => this.load());
   }
-  deleteTopic(t: Topic): void {
-    if (!confirm(`Delete topic "${t.name}" and its questions?`)) return;
+  async deleteTopic(t: Topic): Promise<void> {
+    if (!await this.dialogs.confirm({ title: `Delete topic "${t.name}"?`, message: 'Its questions are deleted.', confirmLabel: 'Delete', danger: true })) return;
     this.api.deleteTopic(t.id).subscribe(() => this.load());
   }
 }

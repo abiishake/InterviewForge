@@ -13,6 +13,7 @@ public sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logge
     {
         var (status, code, message, details) = ex switch
         {
+            UnauthorizedAccessException => (401, "UNAUTHENTICATED", "Sign in to continue.", null),
             ForbiddenException f => (403, f.Code, f.Message, null),
             ValidationException v => (400, v.Code, v.Message, (object?)v.Errors),
             NotFoundException n => (404, n.Code, n.Message, null),

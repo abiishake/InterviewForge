@@ -71,9 +71,12 @@ public static partial class SkillMatrixParser
             sections.Add(new MatrixSection(number.Value, cleanTitle, sectionSlug, description, priority, result));
         }
 
+        var inFence = false;
         foreach (var raw in lines)
         {
             var line = raw.TrimEnd();
+            if (MarkdownHelpers.IsFence(line)) { inFence = !inFence; continue; }
+            if (inFence) continue; // headings and bullets inside code fences are not structure
             var sm = SectionHeading().Match(line);
             if (sm.Success)
             {

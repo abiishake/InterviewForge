@@ -5,7 +5,8 @@ import { authGuard, adminGuard } from './core/auth.guard';
 export const routes: Routes = [
   {path:'auth',loadComponent:()=>import('./features/auth/auth.component').then(m=>m.AuthComponent),title:'Sign in · InterviewForge'},
   {path:'',canActivateChild:[authGuard],children:[
-  {path:'admin',canActivate:[adminGuard],loadComponent:()=>import('./features/admin/admin.component').then(m=>m.AdminComponent),title:'Administration · InterviewForge'},
+  {path:'admin',canActivate:[adminGuard],loadChildren:()=>import('./features/admin/admin.routes').then(m=>m.adminRoutes)},
+  {path:'account',loadComponent:()=>import('./features/account/account.component').then(m=>m.AccountComponent),title:'Account · InterviewForge'},
   {path:'feedback',loadComponent:()=>import('./features/feedback/feedback.component').then(m=>m.FeedbackComponent),title:'My feedback · InterviewForge'},
   {path:'algorithms/new',loadComponent:()=>import('./features/algorithms/algorithm-form.component').then(m=>m.AlgorithmFormComponent),title:'New algorithm · InterviewForge'},
   {path:'algorithms/:slug/edit',loadComponent:()=>import('./features/algorithms/algorithm-form.component').then(m=>m.AlgorithmFormComponent),title:'Edit algorithm · InterviewForge'},
@@ -29,7 +30,7 @@ export const routes: Routes = [
   { path: 'interview', loadComponent: () => import('./features/interview/interview.component').then(m => m.InterviewComponent), title: 'Interview mode · InterviewForge' },
   { path: 'notes', loadComponent: () => import('./features/notes/notes.component').then(m => m.NotesComponent), title: 'My notes · InterviewForge' },
   { path: 'mine', loadComponent: () => import('./features/my-content/my-content.component').then(m => m.MyContentComponent), title: 'My content · InterviewForge' },
-  { path: 'settings', canActivate:[adminGuard], loadComponent: () => import('./features/settings/settings.component').then(m => m.SettingsComponent), title: 'Settings · InterviewForge' },
+  { path: 'settings', redirectTo: 'admin/import' },
   { path: '**', redirectTo: '' }
   ]}
 ];

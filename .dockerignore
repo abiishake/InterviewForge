@@ -10,3 +10,10 @@ data/*.db*
 data-local
 backups
 src/InterviewForge.Api/wwwroot
+src/InterviewForge.Api/data
+**/data/keys
+**/*.db
+**/*.db-shm
+**/*.db-wal
+.env.*
+!.env.example

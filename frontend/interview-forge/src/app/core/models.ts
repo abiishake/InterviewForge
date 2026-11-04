@@ -62,15 +62,19 @@ export interface Dashboard {
   currentPlan?: Plan; today?: PlanDayDetail; streak: number; completedToday: number; overall: ProgressSummary;
   topicsCompleted: number; topicsTotal: number; questionsRemaining: number; overdueItems: number; dueForReview: number; needsReview: number;
   continue?: { questionId: number; questionText: string; topicName: string; reason: string };
-  sections: Section[];
+  sections: Section[]; localDate: string;
 }
 export interface ReviewOverview { totalNeedingRevision: number; hard: number; needsReview: number; recentlyIncorrect: number; dueNow: number; favorites: number; }
-export interface OverallProgress { overall: ProgressSummary; sections: Section[]; topicsCompleted: number; topicsTotal: number; activity: { date: string; count: number }[]; }
+export interface OverallProgress { overall: ProgressSummary; sections: Section[]; topicsCompleted: number; topicsTotal: number; activity: { date: string; count: number }[]; localDate: string; }
 
 export interface ApiError { code: string; message: string; details?: Record<string, string[]>; }
 
-export interface Account { id: string; username: string; email: string; displayName: string; isAdmin: boolean; }
-export interface Feedback { id: number; kind: string; contentId: number; userId: string; addedBy: string; message: string; status: string; adminResponse?: string; }
-export interface AdminUser { id: string; username: string; displayName: string; email: string; completed: number; reviews: number; plans: number; contributions: number; }
+export interface Account { id: string; username: string; email: string; displayName: string; isAdmin: boolean; timeZone: string; mustChangePassword: boolean; createdAt?: string; }
+export interface Feedback { id: number; kind: string; contentId: number; userId: string; addedBy: string; message: string; status: string; adminResponse?: string; reviewedBy?: string; createdAt: string; updatedAt: string; contentTitle?: string; contentUrl?: string; contentExists: boolean; }
+export interface ContentImpact { usersWithProgress: number; usersWithNotes: number; planItems: number; }
+export interface AdminUserListItem { id: string; username: string; displayName: string; email: string; role: 'Admin' | 'Member'; isDisabled: boolean; createdAt: string; lastLoginAt: string | null; lastActiveAt: string | null; completed: number; contributions: number; }
+export interface AdminUserDetail { id: string; username: string; displayName: string; email: string; role: 'Admin' | 'Member'; isDisabled: boolean; disabledAt: string | null; mustChangePassword: boolean; timeZone: string; createdAt: string; lastLoginAt: string | null; passwordChangedAt: string | null; completed: number; needsReview: number; reviews: number; plans: number; sections: number; topics: number; questions: number; algorithms: number; feedbackSubmitted: number; }
+export interface AuditEntry { id: number; at: string; actorName: string; action: string; targetName: string | null; detail: string | null; }
+export interface UserListQuery { search?: string; role?: string; status?: string; sort?: string; page?: number; pageSize?: number; }
 export type SaveAlgorithm = Pick<AlgorithmDetail, 'category'|'name'|'problemStatement'|'explanation'|'approach'|'timeComplexity'|'spaceComplexity'|'implementation'|'example'|'interviewQuestions'|'commonMistakes'>;
 export interface AdminProgress { progress: {questionId: number; question: string; status: string; reviewCount: number; isFavorite: boolean; nextReviewAt?: string}[]; plans: {id: number; name: string; status: string; durationDays: number}[]; activity: {questionId: number; kind: string; occurredAt: string}[]; }

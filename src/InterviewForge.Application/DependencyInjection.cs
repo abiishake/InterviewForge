@@ -1,3 +1,4 @@
+using InterviewForge.Application.Admin;
 using InterviewForge.Application.Content;
 using InterviewForge.Application.Import;
 using InterviewForge.Application.Plans;
@@ -11,6 +12,8 @@ public static class DependencyInjection
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
         services.AddSingleton<IClock, SystemClock>();
+        services.AddScoped<AuditService>();
+        services.AddScoped<UserAdminService>();
         services.AddScoped<ProgressQueries>();
         services.AddScoped<ContentService>();
         services.AddScoped<SearchService>();

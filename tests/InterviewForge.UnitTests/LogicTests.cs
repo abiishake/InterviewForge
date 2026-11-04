@@ -201,3 +201,29 @@ public class ValidationTests
         Assert.Equal(Text.Hash("What is DI?"), Text.Hash("what is   di"));
     }
 }
+
+
+public class UserClockTests
+{
+    private sealed class FixedClock(DateTime utc) : IClock { public DateTime UtcNow => utc; public DateOnly Today => DateOnly.FromDateTime(utc); }
+    private sealed class ZoneUser(string zone) : ICurrentUser
+    {
+        public string UserId => "u"; public string DisplayName => "U"; public bool IsAdmin => false; public string TimeZone => zone;
+    }
+
+    [Fact]
+    public void Evening_utc_is_already_tomorrow_in_india()
+    {
+        var clock = new UserClock(new FixedClock(new DateTime(2026, 11, 4, 20, 0, 0, DateTimeKind.Utc)), new ZoneUser("Asia/Kolkata"));
+        Assert.Equal(new DateOnly(2026, 11, 5), clock.Today);
+        Assert.Equal(new DateTime(2026, 11, 4, 18, 30, 0, DateTimeKind.Utc), clock.StartOfTodayUtc);
+        Assert.Equal(new DateOnly(2026, 11, 5), clock.ToLocalDate(new DateTime(2026, 11, 4, 19, 0, 0, DateTimeKind.Utc)));
+    }
+
+    [Fact]
+    public void Unknown_zone_falls_back_to_utc()
+    {
+        var clock = new UserClock(new FixedClock(new DateTime(2026, 11, 4, 20, 0, 0, DateTimeKind.Utc)), new ZoneUser("Nope/Nowhere"));
+        Assert.Equal(new DateOnly(2026, 11, 4), clock.Today);
+    }
+}

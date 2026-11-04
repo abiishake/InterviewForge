@@ -130,7 +130,7 @@ public sealed class ImportService(IAppDbContext db, ImportOptions options, ILogg
         // ---- Questions ------------------------------------------------------------------------
         var existingByExt = await db.Questions.Include(q => q.Answer).Include(q => q.Tags)
             .Where(q => q.ExternalId != null).ToDictionaryAsync(q => q.ExternalId!, ct);
-        var hashes = await db.Questions.Select(q => new { q.ContentHash, q.ExternalId }).ToListAsync(ct);
+        var hashes = await db.Questions.Where(q => q.ExternalId != null).Select(q => new { q.ContentHash, q.ExternalId }).ToListAsync(ct);
         var hashOwners = hashes.GroupBy(h => h.ContentHash).ToDictionary(g => g.Key, g => g.First().ExternalId);
         var tagsByName = await db.Tags.ToDictionaryAsync(t => t.Name.ToLowerInvariant(), ct);
 

@@ -7,11 +7,6 @@ using Microsoft.Extensions.Logging;
 
 namespace InterviewForge.Infrastructure;
 
-public sealed class LocalUser : ICurrentUser
-{
-    public string UserId => "local";
-}
-
 public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration config)
@@ -19,7 +14,7 @@ public static class DependencyInjection
         var cs = config.GetConnectionString("DefaultConnection") ?? "Data Source=data/interviewforge.db";
         services.AddDbContext<AppDbContext>(o => o.UseSqlite(cs, sql => sql.CommandTimeout(30)));
         services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<AppDbContext>());
-        services.AddScoped<ICurrentUser, LocalUser>();
+        services.AddScoped<IUserClock, UserClock>();
         return services;
     }
 

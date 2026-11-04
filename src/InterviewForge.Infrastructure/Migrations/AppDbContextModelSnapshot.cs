@@ -25,6 +25,9 @@ namespace InterviewForge.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTime?>("DisabledAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("DisplayName")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -34,8 +37,33 @@ namespace InterviewForge.Infrastructure.Migrations
                         .HasMaxLength(254)
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("IsDisabled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("LastLoginAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("MustChangePassword")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("PasswordChangedAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("PasswordHash")
                         .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SecurityStamp")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TimeZone")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Username")
@@ -203,6 +231,77 @@ namespace InterviewForge.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("Answers");
+                });
+
+            modelBuilder.Entity("InterviewForge.Domain.AppSetting", b =>
+                {
+                    b.Property<string>("Key")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Key");
+
+                    b.ToTable("AppSettings");
+
+                    b.HasData(
+                        new
+                        {
+                            Key = "Registration",
+                            UpdatedAt = new DateTime(2026, 11, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Value = "Open"
+                        });
+                });
+
+            modelBuilder.Entity("InterviewForge.Domain.AuditLog", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ActorId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ActorName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("At")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Detail")
+                        .HasMaxLength(2048)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TargetId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TargetName")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("At");
+
+                    b.HasIndex("TargetId", "At");
+
+                    b.ToTable("AuditLogs");
                 });
 
             modelBuilder.Entity("InterviewForge.Domain.ContentFeedback", b =>

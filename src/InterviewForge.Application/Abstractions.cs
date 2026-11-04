@@ -25,6 +25,8 @@ public interface IAppDbContext
     DbSet<AccountRole> AccountRoles { get; }
     DbSet<ContentFeedback> Feedback { get; }
     DbSet<DeletedSeed> DeletedSeeds { get; }
+    DbSet<AuditLog> AuditLogs { get; }
+    DbSet<AppSetting> AppSettings { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     Task<IAppTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default);
@@ -42,14 +44,47 @@ public interface IAppTransaction : IAsyncDisposable
 public interface ICurrentUser
 {
     string UserId { get; }
-    string DisplayName => "Legacy user";
-    bool IsAdmin => false;
+    string DisplayName { get; }
+    bool IsAdmin { get; }
+    /// <summary>IANA time zone id of the signed-in account.</summary>
+    string TimeZone { get; }
 }
 
 public interface IClock
 {
     DateTime UtcNow { get; }
     DateOnly Today { get; }
+}
+
+/// <summary>"Today" in the signed-in user's time zone.</summary>
+public interface IUserClock
+{
+    DateOnly Today { get; }
+    DateTime StartOfTodayUtc { get; }
+    DateOnly ToLocalDate(DateTime utc);
+}
+
+public sealed class UserClock(IClock clock, ICurrentUser user) : IUserClock
+{
+    private TimeZoneInfo Zone
+    {
+        get
+        {
+            try { return TimeZoneInfo.FindSystemTimeZoneById(user.TimeZone); }
+            catch (Exception) { return TimeZoneInfo.Utc; }
+        }
+    }
+    public DateOnly ToLocalDate(DateTime utc) =>
+        DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), Zone));
+    public DateOnly Today => ToLocalDate(clock.UtcNow);
+    public DateTime StartOfTodayUtc
+    {
+        get
+        {
+            var local = Today.ToDateTime(TimeOnly.MinValue);
+            return TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(local, DateTimeKind.Unspecified), Zone);
+        }
+    }
 }
 
 public sealed class SystemClock : IClock

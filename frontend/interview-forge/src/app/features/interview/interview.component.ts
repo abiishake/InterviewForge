@@ -1,66 +1,96 @@
-import { ChangeDetectionStrategy, Component, HostListener, computed, effect, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, HostListener, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Observable, map } from 'rxjs';
 import { QuestionDetail, QuestionSummary, RecallRating, ReviewBucket, Section } from '../../core/models';
 import { ApiService } from '../../core/services/api.service';
+import { ShortcutService } from '../../core/services/shortcut.service';
+import { ToastService } from '../../core/services/toast.service';
 import { MarkdownComponent } from '../../shared/components/markdown.component';
 import { DifficultyBadgeComponent } from '../../shared/components/ui.components';
+import { IconComponent } from '../../shared/ui/icon.component';
+import { SkeletonComponent } from '../../shared/ui/skeleton.component';
+
+const LABELS: Record<RecallRating, string> = { Easy: 'Easy', Okay: 'Okay', Hard: 'Hard', DidNotKnow: "Didn't know" };
 
 /** Focused self-test: answer hidden, reveal, then rate. Ratings feed the spaced-review scheduler. */
 @Component({
   selector: 'app-interview',
-  imports: [RouterLink, MarkdownComponent, DifficultyBadgeComponent],
+  imports: [RouterLink, MarkdownComponent, DifficultyBadgeComponent, IconComponent, SkeletonComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="page narrow">
-      <div class="page-header"><div><div class="eyebrow">Interview mode</div><h1>Answer out loud, then check yourself</h1></div></div>
-
+    <div class="wrap">
       @if (!queue().length && !loading()) {
-        <div class="card">
-          <p>Pick a pool of questions:</p>
-          <div class="row">
-            <button class="btn" (click)="start('due')">Due for review</button>
-            <button class="btn" (click)="start('notstarted')">Not started (all)</button>
-            @for (s of sections(); track s.id) { @if (s.progress.total > 0) { <button class="btn sm" (click)="start('section', s.id)">{{ s.name }}</button> } }
-          </div>
-          @if (emptyPool()) { <p class="muted mt">That pool is empty — choose another.</p> }
+        <div class="row head"><div><div class="eyebrow">Interview mode</div><h1>Answer out loud, then check yourself</h1></div><span class="spacer"></span><a class="btn ghost" routerLink="/">Exit</a></div>
+        <div class="pools">
+          <button class="pool" (click)="start('due')"><app-icon name="refresh" [size]="24" /><b>Due now</b><span class="muted">Spaced-review questions that are due</span></button>
+          <button class="pool" (click)="start('notstarted')"><app-icon name="bolt" [size]="24" /><b>Not started</b><span class="muted">30 random questions you have not touched</span></button>
         </div>
+        <h2 class="mt">By section</h2>
+        <div class="chips wrapchips">
+          @for (s of sections(); track s.id) { @if (s.progress.total > 0) { <button type="button" (click)="start('section', s.id)">{{ s.name }}</button> } }
+        </div>
+        @if (emptyPool()) { <p class="muted mt" role="status">That pool is empty. Choose another.</p> }
       } @else if (current(); as q) {
-        <div class="row dim small"><span>Question {{ index() + 1 }} of {{ queue().length }}</span><span class="spacer"></span>
-          <span>{{ q.sectionName }} → {{ q.topicName }}</span><app-difficulty [value]="q.difficulty" /></div>
-        <div class="card qcard mt">
+        <div class="topline">
+          <button class="btn sm ghost" (click)="reset()"><app-icon name="x" [size]="16" /> End</button>
+          <div class="bar" role="progressbar" [attr.aria-valuenow]="index() + 1" aria-valuemin="1" [attr.aria-valuemax]="queue().length"><div class="fill" [style.width.%]="progressPct()"></div></div>
+          <span class="dim small">{{ index() + 1 }} / {{ queue().length }}</span>
+        </div>
+        <div class="row dim small meta"><span>{{ q.sectionName }} → {{ q.topicName }}</span><span class="spacer"></span><app-difficulty [value]="q.difficulty" /></div>
+        <div class="card qcard">
           <app-markdown class="question" [source]="q.text" />
+          @if (revealed()) { <hr /><div class="answer"><app-markdown [source]="q.answerMarkdown" /></div> }
+        </div>
+        <div class="controls">
           @if (!revealed()) {
-            <button class="btn primary mt-lg" (click)="revealed.set(true)">Show answer (space)</button>
+            <button class="btn primary show" (click)="revealed.set(true)">Show answer <kbd class="hint">space</kbd></button>
+            <div class="row"><a class="btn ghost" [routerLink]="['/questions', q.id]">Open full question</a><span class="spacer"></span><button class="btn ghost" (click)="skip()">Skip</button></div>
           } @else {
-            <hr />
-            <app-markdown [source]="q.answerMarkdown" />
-            <div class="rate">
-              <b>How well did you know this?</b>
-              <button class="btn ok" (click)="rate('Easy')">1 · Easy</button>
-              <button class="btn ok" (click)="rate('Okay')">2 · Okay</button>
-              <button class="btn warn" (click)="rate('Hard')">3 · Hard</button>
-              <button class="btn warn" (click)="rate('DidNotKnow')">4 · Didn't know</button>
+            <div class="grid4" role="group" aria-label="How well did you know this?">
+              <button class="btn big ok" (click)="rate('Easy')" [disabled]="rating()"><app-icon name="check" [size]="18" /> Easy <kbd class="hint">1</kbd></button>
+              <button class="btn big ok" (click)="rate('Okay')" [disabled]="rating()">Okay <kbd class="hint">2</kbd></button>
+              <button class="btn big warn" (click)="rate('Hard')" [disabled]="rating()">Hard <kbd class="hint">3</kbd></button>
+              <button class="btn big warn" (click)="rate('DidNotKnow')" [disabled]="rating()"><app-icon name="refresh" [size]="18" /> Didn't know <kbd class="hint">4</kbd></button>
             </div>
           }
         </div>
-        <div class="row mt"><a class="btn ghost" [routerLink]="['/questions', q.id]">Open full question</a><span class="spacer"></span>
-          <button class="btn ghost" (click)="next()">Skip →</button><button class="btn ghost" (click)="reset()">End session</button></div>
-      } @else if (loading()) { <div class="loading">Preparing questions…</div> }
-      @else {
-        <div class="card"><h2>Session complete</h2><p class="muted">{{ rated() }} questions rated. Difficult ones are now in your review queue.</p>
-          <div class="row"><a class="btn primary" routerLink="/review">Go to review</a><button class="btn" (click)="reset()">New session</button></div></div>
+      } @else if (loading()) {
+        <app-skeleton [count]="6" />
+      } @else {
+        <div class="card done">
+          <h2>Session complete</h2>
+          <p class="muted">{{ rated() }} question(s) rated. Difficult ones are now in your review queue.</p>
+          <ul class="counts">@for (c of summary(); track c.label) { <li><b>{{ c.count }}</b> {{ c.label }}</li> }</ul>
+          <div class="row"><a class="btn primary" routerLink="/review">Go to review</a><button class="btn" (click)="reset()">New session</button><a class="btn ghost" routerLink="/">Exit</a></div>
+        </div>
       }
     </div>`,
   styles: [`
-    .narrow { max-width: 860px; } .small { font-size: 13px; }
-    .qcard { padding: 28px; } .question { display: block; font-size: 1.2rem; font-weight: 500; }
-    hr { border: none; border-top: 1px solid var(--border); margin: 22px 0; }
-    .rate { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border); }
+    .wrap { max-width: 860px; margin: 0 auto; padding: 20px 16px calc(32px + var(--safe-bottom)); } .small { font-size: 13px; }
+    .head { margin-bottom: 14px; }
+    .pools { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); gap: 12px; }
+    .pool { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; text-align: left; padding: 18px; border: 1px solid var(--border-strong); border-radius: var(--radius); background: var(--bg-card); color: var(--text); cursor: pointer; font: 15px var(--font); }
+    .pool:hover { border-color: var(--accent); }
+    .wrapchips { flex-wrap: wrap; overflow: visible; }
+    .topline { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+    .bar { flex: 1; height: 8px; background: var(--bg-hover); border-radius: 99px; overflow: hidden; } .fill { height: 100%; background: var(--accent); transition: width .2s; }
+    .meta { margin: 6px 0; }
+    .qcard { padding: 26px; } .question { display: block; font-size: var(--fs-lg, 1.2rem); font-weight: 500; }
+    hr { border: none; border-top: 1px solid var(--border); margin: 20px 0; } .answer { line-height: 1.75; }
+    .controls { position: sticky; bottom: 0; background: var(--bg); padding: 14px 0 calc(8px + var(--safe-bottom)); display: flex; flex-direction: column; gap: 10px; }
+    .show { min-height: 52px; justify-content: center; font-size: 16px; }
+    .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .big { min-height: 56px; justify-content: center; font-size: 15px; }
+    .hint { font: 11px var(--mono); border: 1px solid currentColor; border-radius: 4px; padding: 0 4px; opacity: .7; }
+    @media (pointer: coarse) { .hint { display: none; } }
+    @media (max-width: 640px) { .grid4 { grid-template-columns: 1fr 1fr; } }
+    .counts { list-style: none; padding: 0; display: flex; gap: 18px; flex-wrap: wrap; }
   `]
 })
 export class InterviewComponent {
   private api = inject(ApiService);
+  private toast = inject(ToastService);
+  private shortcuts = inject(ShortcutService);
   readonly topic = input<string>();
   readonly bucket = input<ReviewBucket>();
   readonly sections = signal<Section[]>([]);
@@ -71,32 +101,34 @@ export class InterviewComponent {
   readonly loading = signal(false);
   readonly emptyPool = signal(false);
   readonly rated = signal(0);
-  readonly finished = computed(() => this.queue().length > 0 && this.index() >= this.queue().length);
+  /** F2: true while a rating request is in flight, so key repeat or a double tap cannot rate twice. */
+  readonly rating = signal(false);
+  private counts = signal<Record<RecallRating, number>>({ Easy: 0, Okay: 0, Hard: 0, DidNotKnow: 0 });
+  readonly progressPct = computed(() => (this.queue().length ? ((this.index() + 1) / this.queue().length) * 100 : 0));
+  readonly summary = computed(() => (Object.keys(LABELS) as RecallRating[]).map(k => ({ label: LABELS[k], count: this.counts()[k] })));
 
   constructor() {
     this.api.sections().subscribe(s => this.sections.set(s));
     effect(() => {
       const t = this.topic(), b = this.bucket();
-      if (t) this.load(this.api.topicQuestions(Number(t), 'All').pipe(map(p => p.items)));
-      else if (b) this.load(this.api.reviewQueue(b).pipe(map(p => p.items)));
+      untracked(() => {
+        if (t) this.load(this.api.topicQuestions(Number(t), 'All').pipe(map(p => p.items)));
+        else if (b) this.load(this.api.reviewQueue(b).pipe(map(p => p.items)));
+      });
     });
   }
 
+  /** F3: pools are built on the server (section filter, random order, limit), never by filtering one page client-side. */
   start(kind: 'due' | 'notstarted' | 'section', sectionId?: number): void {
-    if (kind === 'due') this.load(this.api.reviewQueue('Due').pipe(map(p => p.items)));
-    else if (kind === 'notstarted') this.load(this.api.questions({ filter: 'NotStarted', pageSize: 30 }).pipe(map(p => p.items)));
-    else this.load(this.api.topics(sectionId).pipe(map(ts => ts)), sectionId);
+    if (kind === 'due') this.load(this.api.reviewQueue('Due', 1, 50).pipe(map(p => p.items)));
+    else if (kind === 'notstarted') this.load(this.api.questions({ filter: 'NotStarted', random: true, limit: 30 }).pipe(map(p => p.items)));
+    else this.load(this.api.questions({ sectionId, random: true, limit: 40 }).pipe(map(p => p.items)));
   }
 
-  private load(source: Observable<QuestionSummary[]> | Observable<unknown>, sectionId?: number): void {
+  private load(source: Observable<QuestionSummary[]>): void {
     this.loading.set(true); this.emptyPool.set(false); this.rated.set(0);
-    if (sectionId !== undefined) {
-      // Section pool: gather up to 40 questions across its topics via search-free listing.
-      this.api.questions({ pageSize: 200 }).pipe(map(p => p.items.filter(q => q.sectionId === sectionId).slice(0, 40)))
-        .subscribe(items => this.begin(items));
-      return;
-    }
-    (source as Observable<QuestionSummary[]>).subscribe(items => this.begin(items));
+    this.counts.set({ Easy: 0, Okay: 0, Hard: 0, DidNotKnow: 0 });
+    source.subscribe({ next: items => this.begin(items), error: () => this.loading.set(false) });
   }
 
   private begin(items: QuestionSummary[]): void {
@@ -110,23 +142,33 @@ export class InterviewComponent {
     this.revealed.set(false);
     const item = this.queue()[this.index()];
     if (!item) { this.current.set(null); return; }
-    this.api.question(item.id).subscribe(q => this.current.set(q));
+    this.api.question(item.id).subscribe(q => { if (this.queue()[this.index()]?.id === q.id) this.current.set(q); });
   }
 
   rate(r: RecallRating): void {
-    const q = this.current(); if (!q) return;
-    this.api.progress(q.id, { rating: r }).subscribe(() => { this.rated.update(n => n + 1); this.next(); });
+    const q = this.current();
+    if (!q || this.rating() || !this.revealed()) return;
+    this.rating.set(true);
+    this.api.progress(q.id, { rating: r }).subscribe({
+      next: () => {
+        this.rating.set(false);
+        this.rated.update(n => n + 1);
+        this.counts.update(c => ({ ...c, [r]: c[r] + 1 }));
+        this.skip();
+      },
+      error: () => { this.rating.set(false); this.toast.show('Could not save that rating. Try again.', 'error'); } // stays on the same question
+    });
   }
 
-  next(): void { this.index.update(i => i + 1); this.show(); }
-  reset(): void { this.queue.set([]); this.current.set(null); this.index.set(0); }
+  skip(): void { this.index.update(i => i + 1); this.show(); }
+  reset(): void { this.queue.set([]); this.current.set(null); this.index.set(0); this.rating.set(false); }
 
   @HostListener('document:keydown', ['$event'])
   onKey(e: KeyboardEvent): void {
-    if (!this.current()) return;
+    if (!this.current() || this.shortcuts.ignore(e)) return;
     if (e.key === ' ' && !this.revealed()) { e.preventDefault(); this.revealed.set(true); return; }
     if (!this.revealed()) return;
-    const map: Record<string, RecallRating> = { '1': 'Easy', '2': 'Okay', '3': 'Hard', '4': 'DidNotKnow' };
-    if (map[e.key]) this.rate(map[e.key]);
+    const keys: Record<string, RecallRating> = { '1': 'Easy', '2': 'Okay', '3': 'Hard', '4': 'DidNotKnow' };
+    if (keys[e.key]) this.rate(keys[e.key]);
   }
 }

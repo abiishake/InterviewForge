@@ -1,4 +1,9 @@
 using InterviewForge.Application;
+using InterviewForge.Application.Admin;
+using InterviewForge.Application.Common;
+using InterviewForge.Domain;
+using InterviewForge.Infrastructure;
+using Microsoft.EntityFrameworkCore;
 using InterviewForge.Application.Content;
 using InterviewForge.Application.Import;
 using InterviewForge.Application.Plans;
@@ -13,6 +18,7 @@ public sealed class SectionsController(ContentService content) : ControllerBase
 {
     [HttpGet] public Task<IReadOnlyList<SectionDto>> List(CancellationToken ct) => content.GetSectionsAsync(ct);
     [HttpGet("{id:int}")] public Task<SectionDetailDto> Get(int id, CancellationToken ct) => content.GetSectionAsync(id, ct);
+    [HttpGet("{id:int}/impact")] public Task<ContentImpactDto> Impact(int id, CancellationToken ct) => content.GetImpactAsync("section", id, ct);
 
     [HttpPost]
     public async Task<ActionResult<SectionDto>> Create(SaveSectionRequest req, CancellationToken ct)
@@ -30,6 +36,7 @@ public sealed class TopicsController(ContentService content) : ControllerBase
 {
     [HttpGet] public Task<IReadOnlyList<TopicDto>> List([FromQuery] int? sectionId, CancellationToken ct) => content.GetTopicsAsync(sectionId, ct);
     [HttpGet("{id:int}")] public Task<TopicDto> Get(int id, CancellationToken ct) => content.GetTopicAsync(id, ct);
+    [HttpGet("{id:int}/impact")] public Task<ContentImpactDto> Impact(int id, CancellationToken ct) => content.GetImpactAsync("topic", id, ct);
 
     [HttpGet("{id:int}/questions")]
     public Task<PagedResult<QuestionSummaryDto>> Questions(int id, [FromQuery] QuestionFilter filter = QuestionFilter.All,
@@ -52,8 +59,11 @@ public sealed class QuestionsController(ContentService content, ProgressService 
 {
     [HttpGet]
     public Task<PagedResult<QuestionSummaryDto>> List([FromQuery] int? topicId, [FromQuery] QuestionFilter filter = QuestionFilter.All,
-        [FromQuery] string? tag = null, [FromQuery] int page = 1, [FromQuery] int pageSize = 50, CancellationToken ct = default) =>
-        content.GetQuestionsAsync(topicId, filter, tag, page, pageSize, ct);
+        [FromQuery] string? tag = null, [FromQuery] int page = 1, [FromQuery] int pageSize = 50, [FromQuery] int? sectionId = null,
+        [FromQuery] bool random = false, [FromQuery] int? limit = null, CancellationToken ct = default) =>
+        content.GetQuestionsAsync(topicId, filter, tag, page, limit ?? pageSize, ct, sectionId, random);
+
+    [HttpGet("{id:int}/impact")] public Task<ContentImpactDto> Impact(int id, CancellationToken ct) => content.GetImpactAsync("question", id, ct);
 
     [HttpGet("{id:int}")] public Task<QuestionDetailDto> Get(int id, [FromQuery] int? topicId, CancellationToken ct) => content.GetQuestionAsync(id, topicId, ct);
 
@@ -160,9 +170,33 @@ public sealed class PlansController(PlanService plans) : ControllerBase
 }
 
 [Authorize(Roles = "Admin"), ApiController, Route("api/admin")]
-public sealed class AdminController(IImportService importer, IServiceProvider sp) : ControllerBase
+public sealed class AdminController(IImportService importer, IServiceProvider sp, AppDbContext db, AuditService audit) : ControllerBase
 {
-    /// <summary>Re-runs the idempotent Markdown import. Safe to call repeatedly.</summary>
+    /// <summary>Re-runs the idempotent Markdown import. Returns counts and warnings; the classification table only with ?verbose=true.</summary>
     [HttpPost("import")]
-    public Task<ImportReport> Import(CancellationToken ct) => importer.ImportAsync(Program.DataDirectory(sp), ct);
+    public async Task<ImportReport> Import([FromQuery] bool verbose = false, CancellationToken ct = default)
+    {
+        var report = await importer.ImportAsync(Program.DataDirectory(sp), ct);
+        if (!verbose) report.Classifications.Clear();
+        return report;
+    }
+
+    /// <summary>Seed items an administrator deleted. They stay deleted across imports until restored.</summary>
+    [HttpGet("deleted-seeds")]
+    public async Task<IActionResult> DeletedSeeds(CancellationToken ct) =>
+        Ok(await db.DeletedSeeds.AsNoTracking().OrderBy(d => d.Kind).ThenBy(d => d.Key).ToListAsync(ct));
+
+    /// <summary>Removes the tombstone and re-runs the import so the item comes back.</summary>
+    [HttpPost("deleted-seeds/restore")]
+    public async Task<IActionResult> Restore(DeletedSeed req, CancellationToken ct)
+    {
+        var row = await db.DeletedSeeds.FirstOrDefaultAsync(d => d.Kind == req.Kind && d.Key == req.Key, ct)
+                  ?? throw NotFoundException.For("DeletedSeed", req.Key);
+        db.DeletedSeeds.Remove(row);
+        audit.Record(AuditActions.SeedRestore, null, $"{row.Kind}: {row.Key}");
+        await db.SaveChangesAsync(ct);
+        var report = await importer.ImportAsync(Program.DataDirectory(sp), ct);
+        report.Classifications.Clear();
+        return Ok(report);
+    }
 }

@@ -233,6 +233,36 @@ public class Account
     public string DisplayName { get; set; } = "";
     public string PasswordHash { get; set; } = "";
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    public bool IsDisabled { get; set; }
+    public DateTime? DisabledAt { get; set; }
+    /// <summary>True after an administrator set/reset the password; the API stays locked until the user changes it.</summary>
+    public bool MustChangePassword { get; set; }
+    /// <summary>Rotated to invalidate every existing session for the account.</summary>
+    public string SecurityStamp { get; set; } = Guid.NewGuid().ToString("N");
+    public DateTime? LastLoginAt { get; set; }
+    public DateTime? PasswordChangedAt { get; set; }
+    /// <summary>IANA time zone id used to compute the user's "today".</summary>
+    public string TimeZone { get; set; } = "UTC";
+}
+public class AuditLog
+{
+    public long Id { get; set; }
+    public DateTime At { get; set; } = DateTime.UtcNow;
+    public string ActorId { get; set; } = "";
+    public string ActorName { get; set; } = "";
+    public string Action { get; set; } = "";
+    public string? TargetId { get; set; }
+    public string? TargetName { get; set; }
+    /// <summary>Small JSON document with non-secret before/after values.</summary>
+    public string? Detail { get; set; }
+}
+public class AppSetting
+{
+    public string Key { get; set; } = "";
+    public string Value { get; set; } = "";
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    public string? UpdatedBy { get; set; }
 }
 public class AccountRole
 {

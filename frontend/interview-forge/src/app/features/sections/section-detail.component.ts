@@ -1,3 +1,4 @@
+import { DialogService } from '../../core/services/dialog.service';
 import { FeedbackFormComponent } from '../../shared/components/feedback-form.component';
 import { DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, effect, inject, input, signal } from '@angular/core';
@@ -41,9 +42,9 @@ import { ProgressBarComponent } from '../../shared/components/ui.components';
   styles: [`.topics { display: grid; gap: 10px; } .topic h3 { margin: 0; } .small { font-size: 13px; margin: 6px 0 10px; } .mono { font-family: var(--mono); font-size: 13px; }`]
 })
 export class SectionDetailComponent {
-  private api = inject(ApiService);private router=inject(Router);
-  rename(){const s=this.data()?.section;if(!s)return;const name=prompt('Section name',s.name);if(name)this.api.updateSection(s.id,name,s.description).subscribe(()=>this.api.section(s.id).subscribe(d=>this.data.set(d)));}
-  remove(){const s=this.data()?.section;if(s&&confirm('Delete section and all its contents?'))this.api.deleteSection(s.id).subscribe(()=>this.router.navigate(['/sections']));}
+  private api = inject(ApiService);private router=inject(Router);private dialogs=inject(DialogService);
+  async rename(){const s=this.data()?.section;if(!s)return;const name=await this.dialogs.prompt({title:'Rename section',inputLabel:'Section name',value:s.name});if(name)this.api.updateSection(s.id,name,s.description).subscribe(()=>this.api.section(s.id).subscribe(d=>this.data.set(d)));}
+  async remove(){const s=this.data()?.section;if(s&&await this.dialogs.confirm({title:'Delete section?',message:'All its topics and questions are deleted for every member.',confirmLabel:'Delete',danger:true}))this.api.deleteSection(s.id).subscribe(()=>this.router.navigate(['/sections']));}
   readonly id = input.required<string>();
   readonly data = signal<SectionDetail | null>(null);
   constructor() { effect(() => { const id = Number(this.id()); this.api.section(id).subscribe(d => this.data.set(d)); }); }

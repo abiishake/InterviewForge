@@ -1,3 +1,4 @@
+import { DialogService } from '../../core/services/dialog.service';
 import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -43,12 +44,7 @@ import { DifficultyBadgeComponent, ProgressBarComponent, StatusBadgeComponent } 
                     <app-status [value]="i.status" />
                   </a>
                   @if (i.status !== 'Completed') {
-                    <div class="move">
-                      <select [ngModel]="''" (ngModelChange)="move(i, +$event)" aria-label="Move to day">
-                        <option value="" disabled>Move…</option>
-                        @for (n of dayNumbers(); track n) { @if (n !== dayNum()) { <option [value]="n">Day {{ n }}</option> } }
-                      </select>
-                    </div>
+                    <div class="move"><button type="button" class="btn sm" (click)="pickDay(i)" [attr.aria-label]="'Move question to another day'">Move…</button></div>
                   }
                 </li>
               }
@@ -62,12 +58,13 @@ import { DifficultyBadgeComponent, ProgressBarComponent, StatusBadgeComponent } 
     .item { display: flex; align-items: center; }
     .item a { flex: 1; align-items: center !important; }
     .move { padding-right: 12px; }
-    .move select { width: 110px; padding: 4px 6px; font-size: 12px; }
+    .item { flex-wrap: wrap; }
   `]
 })
 export class PlanDayComponent {
   private api = inject(ApiService);
   private toast = inject(ToastService);
+  private dialogs = inject(DialogService);
   readonly planId = input.required<string>();
   readonly day = input.required<string>();
   readonly planIdNum = computed(() => Number(this.planId()));
@@ -90,13 +87,21 @@ export class PlanDayComponent {
 
   reload(): void { this.api.planDay(this.planIdNum(), this.dayNum()).subscribe(d => this.detail.set(d)); }
 
+  async pickDay(item: PlanItem): Promise<void> {
+    const p = this.plan(); if (!p) return;
+    // The server accepts days 1 to duration+1 so a plan never gets gaps.
+    const choices = Array.from({ length: p.durationDays + 1 }, (_, i) => i + 1).filter(n => n !== this.dayNum()).map(n => ({ value: String(n), label: 'Day ' + n }));
+    const chosen = await this.dialogs.choose({ title: 'Move to which day?', message: 'Pick the day this question should be studied.', choices });
+    if (chosen) this.move(item, Number(chosen));
+  }
+
   move(item: PlanItem, target: number): void {
     if (!target) return;
     this.api.moveItem(this.planIdNum(), item.id, target).subscribe(() => { this.toast.show(`Moved to day ${target}`, 'ok'); this.reload(); });
   }
 
-  skip(): void {
-    if (!confirm('Skip this day? Unfinished questions move to the next day.')) return;
+  async skip(): Promise<void> {
+    if (!await this.dialogs.confirm({ title: 'Skip this day?', message: 'Unfinished questions move to the next day.', confirmLabel: 'Skip day' })) return;
     this.api.skipDay(this.planIdNum(), this.dayNum()).subscribe(() => { this.toast.show('Day skipped', 'ok'); this.reload(); });
   }
 }

@@ -21,7 +21,7 @@ sudo usermod -aG docker $USER   # log out/in afterwards
 cd InterviewForge
 cp .env.example .env
 mkdir -p data
-# Set Admin__Email and Admin__Password (12+ characters) in .env before starting.
+# Admin__Password (12+ characters) is REQUIRED on first start; the app refuses to start without it.
 
 docker compose build          # builds Angular + .NET, runs all tests
 docker compose up -d
@@ -202,7 +202,11 @@ POST   /api/plans/{id}/days/{day}/skip · POST /api/plans/{id}/items/{itemId}/mo
 GET    /api/progress · GET /api/review · GET /api/review/queue?bucket=Due|Hard|NeedsReview|RecentlyIncorrect|Favorites|All
 GET    /api/algorithms · GET /api/algorithms/{slug} · GET /api/tags · GET /api/notes
 POST   /api/admin/import
-GET    /health · /health/live · /swagger · /openapi/v1.json
+GET    /api/auth/config · GET /api/auth/me · POST /api/auth/register|login|logout
+GET/PUT /api/account · POST /api/account/password · POST /api/account/sessions/revoke-others
+GET/POST /api/admin/users · GET/PUT/DELETE /api/admin/users/{id} · POST .../role|disable|enable|reset-password|revoke-sessions · GET .../progress
+GET/PUT /api/admin/settings · GET /api/admin/audit
+GET    /health · /health/live   (/swagger and /openapi/v1.json: Development, `Api__ExposeDocs=true`, or administrators)
 ```
 
 Errors always use:
@@ -215,8 +219,12 @@ Errors always use:
 
 ## 7. Security notes
 
-- Email/password accounts use ASP.NET Core password hashing and HttpOnly, SameSite=Strict cookies. All study and content APIs require a session; ownership and admin roles are enforced server-side. Roles are stored separately from profiles.
-- Configure the first administrator through `Admin__Email` / `Admin__Password`; public signup never grants administrator privileges. Existing `local` study data and legacy contributions are assigned to this administrator.
+- Username/password accounts use ASP.NET Core password hashing and HttpOnly, SameSite=Strict cookies. Disabled or deleted accounts, role changes and password resets take effect within 30 seconds because the cookie is re-validated against the account's security stamp. All study and content APIs require a session; ownership and admin roles are enforced server-side. Roles are stored separately from profiles.
+- Administrators manage accounts under Administration (create, edit, disable, role, password reset, sign-out, delete) and every change is written to the audit log (365 days). Admin-set passwords are temporary and force a change at next sign-in. Public registration can be switched Open/Closed.
+- **Forgot the only admin password / no enabled admin?** Set `Admin__Password` (12+ chars) and restart: the `local` administrator is re-enabled with that temporary password and a forced change. Ordinary restarts never reset an enabled admin.
+- Behind a reverse proxy set `Proxy__Enabled=true` and `Proxy__KnownProxies__0=<proxy ip>` so the login rate limit sees real client addresses and HTTPS is detected. Caddy example: `example.com { reverse_proxy 127.0.0.1:8888 }`.
+- Remote images in Markdown are not loaded (privacy); they render as links. The CSP allows only same-origin and `data:` images.
+- Configure the first administrator through `Admin__Password` (and optionally `Admin__Username`/`Admin__Email`); public signup never grants administrator privileges. Existing `local` study data and legacy contributions are assigned to this administrator.
 - Use HTTPS for public deployment and set `Auth__SecureCookies=true`. Keep `.env` private. Every API mutation requires `X-InterviewForge: 1`; no CORS origins are enabled. Login/signup are rate-limited.
 - Persist and back up `/data/keys` alongside SQLite so cookie signatures remain stable after rebuilds. Keys are protected by filesystem permissions; encryption at rest is not configured.
 - User progress is visible to administrators through the read-only Administration view; private notes are not exposed there.
@@ -226,5 +234,5 @@ Errors always use:
 - Request bodies are limited to 1 MB; field lengths are validated.
 - Strict Content-Security-Policy, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` headers.
 - The container runs as the unprivileged `app` user. Bootstrap credentials are environment configuration, never source constants.
-- This update does not add email verification or email-based password recovery. Signup signs users in immediately.
+- There is no email verification or email-based password recovery; an administrator resets passwords. Themes: light, dark or system (Account page). Keyboard shortcuts are listed under Administration > Import.
 - Existing dependency audit warnings remain in the original dependency set; this update is not a full dependency security audit.

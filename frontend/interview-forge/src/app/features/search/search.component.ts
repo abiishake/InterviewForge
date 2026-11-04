@@ -4,17 +4,20 @@ import { Router, RouterLink } from '@angular/router';
 import { QuestionFilter, SearchResult } from '../../core/models';
 import { ApiService } from '../../core/services/api.service';
 import { QuestionListComponent } from '../../shared/components/ui.components';
+import { PaginationComponent } from '../../shared/ui/pagination.component';
+import { SkeletonComponent } from '../../shared/ui/skeleton.component';
+
 
 @Component({
   selector: 'app-search',
-  imports: [FormsModule, RouterLink, QuestionListComponent],
+  imports: [FormsModule, RouterLink, QuestionListComponent, PaginationComponent, SkeletonComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="page">
       <div class="eyebrow">Explore</div>
       <h1>Search topics & questions</h1>
-      <form class="search-box" (ngSubmit)="go()">
-        <input type="search" name="q" [(ngModel)]="text" placeholder="Entity Framework, async await, RabbitMQ, Kubernetes, System Design…" autofocus />
+      <form class="search-box" (ngSubmit)="go()" role="search">
+        <input type="search" name="q" [(ngModel)]="text" placeholder="Entity Framework, async await, RabbitMQ, Kubernetes, System Design…" aria-label="Search" />
         <select name="filter" [(ngModel)]="filterValue" (change)="go()">
           <option value="All">All questions</option><option value="Mine">My questions</option><option value="NotStarted">Not started</option>
           <option value="Completed">Completed</option><option value="NeedsReview">Needs review</option><option value="Favorites">Favorites</option>
@@ -44,14 +47,8 @@ import { QuestionListComponent } from '../../shared/components/ui.components';
         }
         <h3 class="dim mt-lg">{{ r.questions.totalCount }} question{{ r.questions.totalCount === 1 ? '' : 's' }}</h3>
         <app-question-list [items]="r.questions.items" [offset]="(r.questions.page - 1) * r.questions.pageSize" emptyText="No questions match. Try fewer words." />
-        @if (r.questions.totalPages > 1) {
-          <div class="row mt">
-            <button class="btn sm" [disabled]="r.questions.page <= 1" (click)="page(r.questions.page - 1)">← Prev</button>
-            <span class="dim">Page {{ r.questions.page }} / {{ r.questions.totalPages }}</span>
-            <button class="btn sm" [disabled]="r.questions.page >= r.questions.totalPages" (click)="page(r.questions.page + 1)">Next →</button>
-          </div>
-        }
-      } @else if (loading()) { <div class="loading">Searching…</div> }
+        <app-pagination [page]="r.questions.page" [pageSize]="r.questions.pageSize" [total]="r.questions.totalCount" (pageChange)="page($event)" />
+      } @else if (loading()) { <app-skeleton [count]="5" /> }
     </div>`,
   styles: [`
     .search-box { display: flex; gap: 8px; margin-top: 14px; }
@@ -84,10 +81,13 @@ export class SearchComponent {
   }
 
   go(): void { this.router.navigate(['/search'], { queryParams: { q: this.text.trim() || null, filter: this.filterValue === 'All' ? null : this.filterValue } }); }
-  page(p: number): void { this.run(this.text, this.filterValue, p); }
+  /** F8: paging always uses the query that produced the current results, not whatever is typed in the box now. */
+  private lastQuery = { q: '', f: 'All' as QuestionFilter };
+  page(p: number): void { this.run(this.lastQuery.q, this.lastQuery.f, p); }
 
   private run(q: string, f: QuestionFilter, page: number): void {
     if (!q.trim()) { this.result.set(null); return; }
+    this.lastQuery = { q, f };
     this.loading.set(true);
     this.api.search(q, f, page).subscribe({ next: r => { this.result.set(r); this.loading.set(false); }, error: () => this.loading.set(false) });
   }

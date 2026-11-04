@@ -10,11 +10,19 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace InterviewForge.UnitTests;
 
 /// <summary>Runs against a real in-memory SQLite database (the production provider), not the EF in-memory provider.</summary>
+public sealed class TestUser : ICurrentUser
+{
+    public string UserId => "local";
+    public string DisplayName => "Local";
+    public bool IsAdmin => false;
+    public string TimeZone => "UTC";
+}
+
 public sealed class SqliteFixture : IDisposable
 {
     private readonly SqliteConnection _conn = new("Data Source=:memory:");
     public AppDbContext Db { get; }
-    public ICurrentUser User { get; } = new LocalUser();
+    public ICurrentUser User { get; } = new TestUser();
     public IClock Clock { get; } = new SystemClock();
 
     public SqliteFixture()
@@ -24,7 +32,7 @@ public sealed class SqliteFixture : IDisposable
         Db.Database.Migrate();
     }
 
-    public ContentService Content() => new(Db, User, new ProgressQueries(Db, User), Clock, NullLogger<ContentService>.Instance);
+    public ContentService Content() => new(Db, User, new ProgressQueries(Db, User), Clock, new InterviewForge.Application.Admin.AuditService(Db, User, Clock), NullLogger<ContentService>.Instance);
     public void Dispose() { Db.Dispose(); _conn.Dispose(); }
 }
 
@@ -41,9 +49,9 @@ public class SearchAndImportTests
         var topicsAfterFirst = await f.Db.Topics.CountAsync();
         var second = await importer.ImportAsync(dir);
 
-        Assert.Equal(112, first.QuestionsCreated);
+        Assert.Equal(202, first.QuestionsCreated);
         Assert.Equal(0, second.QuestionsCreated);
-        Assert.Equal(112, second.QuestionsUnchanged);
+        Assert.Equal(202, second.QuestionsUnchanged);
         Assert.Equal(0, second.TopicsCreated);
         Assert.Equal(0, second.TopicsUpdated);
         Assert.Equal(countAfterFirst, await f.Db.Questions.CountAsync());

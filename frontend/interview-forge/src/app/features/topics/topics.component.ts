@@ -32,6 +32,7 @@ import { ProgressBarComponent } from '../../shared/components/ui.components';
     .trow { display: grid; grid-template-columns: 1fr 200px 60px; gap: 14px; align-items: center; padding: 7px 10px; color: var(--text); border-radius: var(--radius-sm); }
     .trow:hover { background: var(--bg-hover); text-decoration: none; }
     .mono { font-family: var(--mono); font-size: 12px; text-align: right; }
+    @media (max-width: 640px) { .trow { grid-template-columns: minmax(0, 1fr) 56px; } .trow app-progress-bar { grid-column: 1 / -1; grid-row: 2; } .filter { max-width: none; } }
   `]
 })
 export class TopicsComponent {

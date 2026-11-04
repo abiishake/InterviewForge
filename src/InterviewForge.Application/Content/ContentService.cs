@@ -1,3 +1,4 @@
+using InterviewForge.Application.Admin;
 using InterviewForge.Application.Common;
 using InterviewForge.Domain;
 using Microsoft.EntityFrameworkCore;
@@ -7,7 +8,7 @@ namespace InterviewForge.Application.Content;
 
 public enum QuestionFilter { All, NotStarted, Completed, NeedsReview, Favorites, Mine, InProgress }
 
-public sealed class ContentService(IAppDbContext db, ICurrentUser user, ProgressQueries progress, IClock clock, ILogger<ContentService> logger)
+public sealed class ContentService(IAppDbContext db, ICurrentUser user, ProgressQueries progress, IClock clock, AuditService audit, ILogger<ContentService> logger)
 {
     public const int MaxQuestionLength = 2_000;
     public const int MaxAnswerLength = 50_000;
@@ -55,7 +56,10 @@ public sealed class ContentService(IAppDbContext db, ICurrentUser user, Progress
         ValidateName(req.Name, "name");
         var s = await db.Sections.FindAsync(new object[] { id }, ct) ?? throw NotFoundException.For("Section", id);
         ContentAccess.Ensure(user, s);
-        s.Name = req.Name.Trim(); s.Description = req.Description?.Trim(); s.UpdatedAt = clock.UtcNow;
+        var newName = req.Name.Trim();
+        if (await db.Sections.AnyAsync(x => x.Id != id && x.Name.ToLower() == newName.ToLower(), ct))
+            throw new ConflictException("SECTION_EXISTS", $"A section named '{newName}' already exists.");
+        s.Name = newName; s.Slug = Text.Slugify(newName); s.Description = req.Description?.Trim(); s.UpdatedAt = clock.UtcNow;
         await db.SaveChangesAsync(ct);
     }
 
@@ -65,7 +69,11 @@ public sealed class ContentService(IAppDbContext db, ICurrentUser user, Progress
         ContentAccess.Ensure(user, s);
         var hasImported = await db.Questions.AnyAsync(q => q.Topic.SectionId == id && !q.IsUserCreated, ct);
         if (!user.IsAdmin && (hasImported || await db.Topics.AnyAsync(t => t.SectionId == id && t.CreatedByUserId != user.UserId, ct) || await db.Questions.AnyAsync(q => q.Topic.SectionId == id && q.CreatedByUserId != user.UserId, ct))) throw new ConflictException("SECTION_HAS_IMPORTED_CONTENT", "This section contains imported questions and cannot be deleted.");
+        var impact = await ImpactAsync(db.Questions.Where(q => q.Topic.SectionId == id).Select(q => q.Id), ct);
+        GuardImpact(impact, "section", s.Name);
         if (s.SourceKey is not null) db.DeletedSeeds.Add(new DeletedSeed { Kind = "Section", Key = s.SourceKey });
+        await MarkFeedbackDeletedAsync("Section", [id], ct);
+        await MarkFeedbackDeletedAsync("Topic", s.Topics.Select(t => t.Id).ToList(), ct);
         foreach (var t in s.Topics.Where(t => t.SourceKey != null)) db.DeletedSeeds.Add(new DeletedSeed { Kind = "Topic", Key = t.SourceKey ?? "" });
         await DeleteQuestionsAsync(db.Questions.Where(q => q.Topic.SectionId == id), ct);
         db.Topics.RemoveRange(s.Topics);
@@ -114,7 +122,10 @@ public sealed class ContentService(IAppDbContext db, ICurrentUser user, Progress
         var t = await db.Topics.FindAsync(new object[] { id }, ct) ?? throw NotFoundException.For("Topic", id);
         ContentAccess.Ensure(user, t);
         if (!await db.Sections.AnyAsync(s => s.Id == req.SectionId, ct)) throw new ValidationException("sectionId", "Section does not exist.");
-        t.Name = req.Name.Trim(); t.Description = req.Description?.Trim(); t.SectionId = req.SectionId; t.UpdatedAt = clock.UtcNow;
+        var newName = req.Name.Trim();
+        if (await db.Topics.AnyAsync(x => x.Id != id && x.SectionId == req.SectionId && x.Name.ToLower() == newName.ToLower(), ct))
+            throw new ConflictException("TOPIC_EXISTS", $"A topic named '{newName}' already exists in this section.");
+        t.Name = newName; t.Slug = Text.Slugify(newName); t.Description = req.Description?.Trim(); t.SectionId = req.SectionId; t.UpdatedAt = clock.UtcNow;
         await db.SaveChangesAsync(ct);
     }
 
@@ -124,6 +135,9 @@ public sealed class ContentService(IAppDbContext db, ICurrentUser user, Progress
         ContentAccess.Ensure(user, t);
         if (!user.IsAdmin && await db.Questions.AnyAsync(q => q.TopicId == id && q.CreatedByUserId != user.UserId, ct))
             throw new ConflictException("TOPIC_HAS_IMPORTED_CONTENT", "This topic contains imported questions and cannot be deleted.");
+        var impact = await ImpactAsync(db.Questions.Where(q => q.TopicId == id).Select(q => q.Id), ct);
+        GuardImpact(impact, "topic", t.Name);
+        await MarkFeedbackDeletedAsync("Topic", [id], ct);
         await DeleteQuestionsAsync(db.Questions.Where(q => q.TopicId == id), ct);
         if (t.SourceKey is not null) db.DeletedSeeds.Add(new DeletedSeed { Kind = "Topic", Key = t.SourceKey });
         db.Topics.Remove(t);
@@ -131,13 +145,16 @@ public sealed class ContentService(IAppDbContext db, ICurrentUser user, Progress
     }
 
     // ---------------------------------------------------------------- Questions
-    public async Task<PagedResult<QuestionSummaryDto>> GetQuestionsAsync(int? topicId, QuestionFilter filter, string? tag, int page, int pageSize, CancellationToken ct)
+    public async Task<PagedResult<QuestionSummaryDto>> GetQuestionsAsync(int? topicId, QuestionFilter filter, string? tag, int page, int pageSize, CancellationToken ct,
+        int? sectionId = null, bool random = false)
     {
         if (topicId is not null && !await db.Topics.AnyAsync(t => t.Id == topicId, ct)) throw NotFoundException.For("Topic", topicId);
         var q = db.Questions.AsNoTracking();
         if (topicId is not null) q = q.Where(x => x.TopicId == topicId || x.AdditionalTopics.Any(a => a.TopicId == topicId));
         if (!string.IsNullOrWhiteSpace(tag)) { var tg = tag.Trim().TrimStart('#').ToLower(); q = q.Where(x => x.Tags.Any(t => t.Tag.Name.ToLower() == tg)); }
+        if (sectionId is not null) q = q.Where(x => x.Topic.SectionId == sectionId);
         q = ApplyFilter(q, filter);
+        if (random) return await ToPagedSummariesAsync(q.OrderBy(x => EF.Functions.Random()), 1, pageSize, ct);
         return await ToPagedSummariesAsync(q.OrderBy(x => x.Topic.Section.SortOrder).ThenBy(x => x.Topic.SortOrder).ThenBy(x => x.SortOrder).ThenBy(x => x.Id), page, pageSize, ct);
     }
 
@@ -253,6 +270,7 @@ public sealed class ContentService(IAppDbContext db, ICurrentUser user, Progress
     {
         var q = await db.Questions.FirstOrDefaultAsync(x => x.Id == id, ct) ?? throw NotFoundException.For("Question", id);
         ContentAccess.Ensure(user, q);
+        GuardImpact(await ImpactAsync(db.Questions.Where(x => x.Id == id).Select(x => x.Id), ct), "question", q.Text);
         await DeleteQuestionsAsync(db.Questions.Where(x => x.Id == id), ct);
         await db.SaveChangesAsync(ct);
         logger.LogInformation("User question {QuestionId} deleted", id);
@@ -261,11 +279,57 @@ public sealed class ContentService(IAppDbContext db, ICurrentUser user, Progress
     public async Task<IReadOnlyList<string>> GetTagsAsync(CancellationToken ct) =>
         await db.Tags.AsNoTracking().OrderBy(t => t.Name).Select(t => t.Name).ToListAsync(ct);
 
+    // ---------------------------------------------------------------- impact (B2)
+    public async Task<ContentImpactDto> GetImpactAsync(string kind, int id, CancellationToken ct)
+    {
+        IQueryable<int> ids;
+        switch (kind)
+        {
+            case "question":
+                if (!await db.Questions.AnyAsync(x => x.Id == id, ct)) throw NotFoundException.For("Question", id);
+                ids = db.Questions.Where(x => x.Id == id).Select(x => x.Id); break;
+            case "topic":
+                if (!await db.Topics.AnyAsync(x => x.Id == id, ct)) throw NotFoundException.For("Topic", id);
+                ids = db.Questions.Where(x => x.TopicId == id).Select(x => x.Id); break;
+            default:
+                if (!await db.Sections.AnyAsync(x => x.Id == id, ct)) throw NotFoundException.For("Section", id);
+                ids = db.Questions.Where(x => x.Topic.SectionId == id).Select(x => x.Id); break;
+        }
+        return await ImpactAsync(ids, ct);
+    }
+
+    /// <summary>Counts of OTHER users' data attached to the given questions. No identities are returned.</summary>
+    private async Task<ContentImpactDto> ImpactAsync(IQueryable<int> questionIds, CancellationToken ct)
+    {
+        var uid = user.UserId;
+        var progressUsers = await db.UserProgress.Where(p => p.UserId != uid && questionIds.Contains(p.QuestionId)).Select(p => p.UserId).Distinct().CountAsync(ct);
+        var noteUsers = await db.UserNotes.Where(n => n.UserId != uid && questionIds.Contains(n.QuestionId)).Select(n => n.UserId).Distinct().CountAsync(ct);
+        var planItems = await db.PlanItems.CountAsync(i => questionIds.Contains(i.QuestionId) && db.Plans.Any(p => p.Id == i.PlanDay.PlanId && p.UserId != uid), ct);
+        return new ContentImpactDto(progressUsers, noteUsers, planItems);
+    }
+
+    /// <summary>Members may not delete shared content other people have studied; admins may, and it is audited.</summary>
+    private void GuardImpact(ContentImpactDto impact, string kind, string name)
+    {
+        if (impact.UsersWithProgress + impact.UsersWithNotes == 0 && impact.PlanItems == 0) return;
+        if (!user.IsAdmin)
+            throw new ConflictException("CONTENT_IN_USE", "Other members have studied this. Ask an administrator to remove it.");
+        audit.Record(AuditActions.ContentForceDelete, null, $"{kind}: {(name.Length > 80 ? name[..80] : name)}", impact);
+    }
+
+    private async Task MarkFeedbackDeletedAsync(string kind, IReadOnlyCollection<int> contentIds, CancellationToken ct)
+    {
+        if (contentIds.Count == 0) return;
+        var rows = await db.Feedback.Where(f => f.Kind == kind && contentIds.Contains(f.ContentId)).ToListAsync(ct);
+        foreach (var f in rows) f.Status = "ContentDeleted";
+    }
+
     // ---------------------------------------------------------------- helpers
     private async Task DeleteQuestionsAsync(IQueryable<Question> questions, CancellationToken ct)
     {
         var ids = await questions.Select(q => q.Id).ToListAsync(ct);
         if (ids.Count == 0) return;
+        await MarkFeedbackDeletedAsync("Question", ids, ct);
         db.PlanItems.RemoveRange(db.PlanItems.Where(i => ids.Contains(i.QuestionId)));
         db.UserProgress.RemoveRange(db.UserProgress.Where(i => ids.Contains(i.QuestionId)));
         db.UserNotes.RemoveRange(db.UserNotes.Where(i => ids.Contains(i.QuestionId)));

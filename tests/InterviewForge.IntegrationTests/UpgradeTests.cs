@@ -29,6 +29,41 @@ public class UpgradeTests
             Assert.True((await db.UserProgress.SingleAsync()).IsFavorite);
             Assert.Equal("Legacy note",(await db.UserNotes.SingleAsync()).Body);
             await AccountBootstrap.Run(db,config);Assert.Equal(1,await db.Accounts.CountAsync());
+            var admin=await db.Accounts.SingleAsync();
+            Assert.False(string.IsNullOrEmpty(admin.SecurityStamp));Assert.Equal("UTC",admin.TimeZone);Assert.False(admin.IsDisabled);Assert.False(admin.MustChangePassword);
+            Assert.Equal("Open",(await db.AppSettings.SingleAsync(x=>x.Key=="Registration")).Value);
+        } finally {File.Delete(path);}
+    }
+
+    [Fact] public async Task Bootstrap_refuses_to_start_without_a_strong_admin_password()
+    {
+        var path=Path.Combine(Path.GetTempPath(),Guid.NewGuid()+".db");
+        try {
+            await using var db=new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseSqlite($"Data Source={path};Pooling=False").Options);
+            await db.Database.MigrateAsync();
+            var config=new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?> { ["Admin:Password"]="short" }).Build();
+            var ex=await Assert.ThrowsAsync<InvalidOperationException>(()=>AccountBootstrap.Run(db,config));
+            Assert.Contains("Admin__Password",ex.Message);
+        } finally {File.Delete(path);}
+    }
+    [Fact] public async Task Bootstrap_recovers_when_no_enabled_admin_exists_and_leaves_other_admins_alone()
+    {
+        var path=Path.Combine(Path.GetTempPath(),Guid.NewGuid()+".db");
+        try {
+            await using var db=new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseSqlite($"Data Source={path};Pooling=False").Options);
+            await db.Database.MigrateAsync();
+            var config=new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?> { ["Admin:Password"]="Test-only-recovery-pass-123" }).Build();
+            await AccountBootstrap.Run(db,config);
+            var local=await db.Accounts.SingleAsync();local.IsDisabled=true;await db.SaveChangesAsync();
+            await AccountBootstrap.Run(db,config);
+            local=await db.Accounts.SingleAsync();
+            Assert.False(local.IsDisabled);Assert.True(local.MustChangePassword);
+            Assert.True(await db.AuditLogs.AnyAsync(a=>a.Action=="bootstrap.recovery"));
+            // With an enabled admin present a different configured username must not rename anybody.
+            var renamed=new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?> { ["Admin:Username"]="someoneelse",["Admin:Password"]="Test-only-recovery-pass-123" }).Build();
+            var before=local.PasswordHash;
+            await AccountBootstrap.Run(db,renamed);
+            Assert.Equal(before,(await db.Accounts.SingleAsync()).PasswordHash);
         } finally {File.Delete(path);}
     }
 }

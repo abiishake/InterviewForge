@@ -3,7 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { Router,RouterLink } from '@angular/router';
 import { ApiService } from '../../core/services/api.service';
 import { SaveAlgorithm } from '../../core/models';
-@Component({selector:'app-algorithm-form',imports:[FormsModule,RouterLink],template:`<div class="page"><h1>{{slug()?'Edit algorithm':'Add algorithm / data structure'}}</h1><form (ngSubmit)="save()" class="stack mt" style="max-width:900px">
+@Component({selector:'app-algorithm-form',imports:[FormsModule,RouterLink],template:`<div class="page"><h1>{{slug()?'Edit algorithm':'Add algorithm / data structure'}}</h1><form (ngSubmit)="save()" class="stack mt maxw-900">
 @for(f of fields;track f.key){<label [for]="f.key">{{f.label}}</label>@if(f.key==='name'||f.key==='category'||f.key==='timeComplexity'||f.key==='spaceComplexity'){<input [id]="f.key" [name]="f.key" [(ngModel)]="body[f.key]" [required]="f.key==='name'||f.key==='category'">}@else{<textarea [id]="f.key" [name]="f.key" rows="5" [(ngModel)]="body[f.key]"></textarea>}}
 <button class="btn primary" [disabled]="busy()">Save algorithm</button><a class="btn" routerLink="/algorithms">Cancel</a></form></div>`})
 export class AlgorithmFormComponent {private api=inject(ApiService);private router=inject(Router);readonly slug=input<string>();readonly busy=signal(false);
