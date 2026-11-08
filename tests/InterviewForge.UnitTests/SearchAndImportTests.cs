@@ -49,9 +49,9 @@ public class SearchAndImportTests
         var topicsAfterFirst = await f.Db.Topics.CountAsync();
         var second = await importer.ImportAsync(dir);
 
-        Assert.Equal(202, first.QuestionsCreated);
+        Assert.Equal(250, first.QuestionsCreated);
         Assert.Equal(0, second.QuestionsCreated);
-        Assert.Equal(202, second.QuestionsUnchanged);
+        Assert.Equal(250, second.QuestionsUnchanged);
         Assert.Equal(0, second.TopicsCreated);
         Assert.Equal(0, second.TopicsUpdated);
         Assert.Equal(countAfterFirst, await f.Db.Questions.CountAsync());

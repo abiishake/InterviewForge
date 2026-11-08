@@ -2738,3 +2738,1194 @@ public static int LengthOfLis(int[] nums)
 ### Common Mistakes
 
 - Assuming `tails` is the actual subsequence (it is not).
+
+# Category: Two Pointers & Sliding Window
+
+## Three Sum
+
+### Problem Statement
+
+Given an integer array, return all unique triplets `[a, b, c]` such that `a + b + c == 0`. The result must not contain duplicate triplets.
+
+### Explanation
+
+Sorting makes it possible to fix one number and then search the rest with two pointers moving inward. Skipping equal neighbours removes duplicate triplets without needing a set.
+
+### Approach
+
+- Sort the array.
+- For each index `i` (skipping values equal to the previous one), set `lo = i + 1` and `hi = n - 1`.
+- If the sum is too small move `lo` right, if too large move `hi` left, otherwise record the triplet and skip duplicates on both sides.
+- Stop early once `nums[i] > 0` because all remaining numbers are positive.
+
+### Time Complexity
+
+O(n²) — sorting is O(n log n), the nested scan dominates.
+
+### Space Complexity
+
+O(1) extra, ignoring the output (and the sort's own stack).
+
+### C# Implementation
+
+```csharp
+public static IList<IList<int>> ThreeSum(int[] nums)
+{
+    Array.Sort(nums);
+    var result = new List<IList<int>>();
+    for (int i = 0; i < nums.Length - 2; i++)
+    {
+        if (nums[i] > 0) break;
+        if (i > 0 && nums[i] == nums[i - 1]) continue;
+        int lo = i + 1, hi = nums.Length - 1;
+        while (lo < hi)
+        {
+            int sum = nums[i] + nums[lo] + nums[hi];
+            if (sum < 0) lo++;
+            else if (sum > 0) hi--;
+            else
+            {
+                result.Add(new List<int> { nums[i], nums[lo], nums[hi] });
+                lo++; hi--;
+                while (lo < hi && nums[lo] == nums[lo - 1]) lo++;
+                while (lo < hi && nums[hi] == nums[hi + 1]) hi--;
+            }
+        }
+    }
+    return result;
+}
+```
+
+### Example
+
+`[-1,0,1,2,-1,-4]` → `[[-1,-1,2],[-1,0,1]]`
+
+### Common Interview Questions
+
+- Why sort first, and what does it cost?
+- How would you extend this to 4Sum or k-Sum?
+- Could you solve it with a hash set instead, and what are the trade-offs?
+
+### Common Mistakes
+
+- Forgetting to skip duplicates for `i`, `lo` or `hi`, which returns repeated triplets.
+- Skipping duplicates before recording the first match.
+- Mutating the caller's array when the problem forbids it.
+
+## Container With Most Water
+
+### Problem Statement
+
+Given heights `h[0..n-1]`, choose two lines that, together with the x-axis, hold the most water. Return the maximum area.
+
+### Explanation
+
+The area between indices `i < j` is `min(h[i], h[j]) * (j - i)`. Start with the widest container and move the pointer at the shorter line inward, because moving the taller one can never increase the area (the width shrinks and the height is still limited by the shorter line).
+
+### Approach
+
+- Set `left = 0`, `right = n - 1`.
+- Compute the area, update the best, then advance whichever side is shorter.
+
+### Time Complexity
+
+O(n)
+
+### Space Complexity
+
+O(1)
+
+### C# Implementation
+
+```csharp
+public static int MaxArea(int[] height)
+{
+    int left = 0, right = height.Length - 1, best = 0;
+    while (left < right)
+    {
+        int area = Math.Min(height[left], height[right]) * (right - left);
+        best = Math.Max(best, area);
+        if (height[left] < height[right]) left++; else right--;
+    }
+    return best;
+}
+```
+
+### Example
+
+`[1,8,6,2,5,4,8,3,7]` → `49`
+
+### Common Interview Questions
+
+- Prove that moving the shorter pointer never skips the optimal pair.
+- What changes if the lines have thickness?
+
+### Common Mistakes
+
+- Moving the taller pointer.
+- Using `max` instead of `min` for the height.
+- Overflowing `int` for very large heights and widths (use `long`).
+
+## Sliding Window Maximum
+
+### Problem Statement
+
+Given an array and a window size `k`, return the maximum of every contiguous window of length `k`.
+
+### Explanation
+
+A monotonic deque of indices keeps candidates in decreasing value order. The front is always the maximum of the current window; smaller values behind a new larger value can never become the maximum again, so they are removed.
+
+### Approach
+
+- For each index `i`, drop the front if it has left the window (`index <= i - k`).
+- Drop from the back while the back value is `<= nums[i]`.
+- Append `i`; once `i >= k - 1`, the front is the window maximum.
+
+### Time Complexity
+
+O(n) — every index enters and leaves the deque once.
+
+### Space Complexity
+
+O(k)
+
+### C# Implementation
+
+```csharp
+public static int[] MaxSlidingWindow(int[] nums, int k)
+{
+    if (k <= 0 || k > nums.Length) return Array.Empty<int>();
+    var result = new int[nums.Length - k + 1];
+    var deque = new LinkedList<int>(); // indices, values decreasing
+    for (int i = 0; i < nums.Length; i++)
+    {
+        if (deque.Count > 0 && deque.First!.Value <= i - k) deque.RemoveFirst();
+        while (deque.Count > 0 && nums[deque.Last!.Value] <= nums[i]) deque.RemoveLast();
+        deque.AddLast(i);
+        if (i >= k - 1) result[i - k + 1] = nums[deque.First!.Value];
+    }
+    return result;
+}
+```
+
+### Example
+
+`nums = [1,3,-1,-3,5,3,6,7], k = 3` → `[3,3,5,5,6,7]`
+
+### Common Interview Questions
+
+- Why is a heap solution O(n log n) and the deque O(n)?
+- Why store indices instead of values?
+
+### Common Mistakes
+
+- Storing values, so the expired element cannot be detected.
+- Using `<` instead of `<=` when popping, which keeps duplicates unnecessarily (still correct, but larger deque).
+- Not validating `k`.
+
+## Minimum Size Subarray Sum
+
+### Problem Statement
+
+Given an array of positive integers and a target, return the length of the shortest contiguous subarray whose sum is at least `target`, or `0` if none exists.
+
+### Explanation
+
+Because all numbers are positive, extending the window only increases the sum and shrinking it only decreases it. A variable-size sliding window therefore finds the minimum in one pass.
+
+### Approach
+
+- Grow `right` and add to the running sum.
+- While the sum is at least `target`, record the window length and shrink from `left`.
+
+### Time Complexity
+
+O(n)
+
+### Space Complexity
+
+O(1)
+
+### C# Implementation
+
+```csharp
+public static int MinSubArrayLen(int target, int[] nums)
+{
+    int left = 0, sum = 0, best = int.MaxValue;
+    for (int right = 0; right < nums.Length; right++)
+    {
+        sum += nums[right];
+        while (sum >= target)
+        {
+            best = Math.Min(best, right - left + 1);
+            sum -= nums[left++];
+        }
+    }
+    return best == int.MaxValue ? 0 : best;
+}
+```
+
+### Example
+
+`target = 7, nums = [2,3,1,2,4,3]` → `2` (`[4,3]`)
+
+### Common Interview Questions
+
+- Why does this fail when negative numbers are allowed?
+- What is the alternative using prefix sums and binary search?
+
+### Common Mistakes
+
+- Using `if` instead of `while` for shrinking.
+- Returning `int.MaxValue` when no window exists.
+
+# Category: Hashing & Heaps
+
+## Group Anagrams
+
+### Problem Statement
+
+Group the words that are anagrams of each other.
+
+### Explanation
+
+Anagrams share the same sorted letters, so the sorted string is a canonical key. A dictionary collects all words with the same key.
+
+### Approach
+
+- For each word, sort its characters to produce the key.
+- Append the word to the list stored under that key.
+- Return all lists.
+
+### Time Complexity
+
+O(n · k log k) for n words of length k.
+
+### Space Complexity
+
+O(n · k)
+
+### C# Implementation
+
+```csharp
+public static IList<IList<string>> GroupAnagrams(string[] words)
+{
+    var groups = new Dictionary<string, List<string>>();
+    foreach (var word in words)
+    {
+        var chars = word.ToCharArray();
+        Array.Sort(chars);
+        var key = new string(chars);
+        if (!groups.TryGetValue(key, out var list))
+            groups[key] = list = new List<string>();
+        list.Add(word);
+    }
+    return groups.Values.Select(g => (IList<string>)g).ToList();
+}
+```
+
+### Example
+
+`["eat","tea","tan","ate","nat","bat"]` → `[["eat","tea","ate"],["tan","nat"],["bat"]]`
+
+### Common Interview Questions
+
+- How can you get O(n · k) with a 26-element count key?
+- What if the input contains Unicode?
+
+### Common Mistakes
+
+- Using the array of counts directly as a dictionary key (arrays use reference equality).
+- Assuming the output order is guaranteed.
+
+## Top K Frequent Elements
+
+### Problem Statement
+
+Return the `k` most frequent values in an array.
+
+### Explanation
+
+Count occurrences with a dictionary, then keep a min-heap of size `k` ordered by frequency. When the heap grows beyond `k`, the least frequent entry is evicted, leaving the top `k`.
+
+### Approach
+
+- Build a frequency dictionary.
+- Enqueue each value with its count as priority into a `PriorityQueue<int, int>` (a min-heap).
+- Dequeue when the size exceeds `k`.
+- Drain the heap into the result.
+
+### Time Complexity
+
+O(n log k)
+
+### Space Complexity
+
+O(n) for the dictionary plus O(k) for the heap.
+
+### C# Implementation
+
+```csharp
+public static int[] TopKFrequent(int[] nums, int k)
+{
+    var counts = new Dictionary<int, int>();
+    foreach (var n in nums)
+        counts[n] = counts.GetValueOrDefault(n) + 1;
+
+    var heap = new PriorityQueue<int, int>(); // element, priority = frequency
+    foreach (var (value, count) in counts)
+    {
+        heap.Enqueue(value, count);
+        if (heap.Count > k) heap.Dequeue();
+    }
+
+    var result = new int[heap.Count];
+    for (int i = result.Length - 1; i >= 0; i--)
+        result[i] = heap.Dequeue();
+    return result; // most frequent first
+}
+```
+
+### Example
+
+`nums = [1,1,1,2,2,3], k = 2` → `[1,2]`
+
+### Common Interview Questions
+
+- How would a bucket sort achieve O(n)?
+- Why a min-heap and not a max-heap of size n?
+
+### Common Mistakes
+
+- Using a max-heap and sorting everything, losing the O(n log k) bound.
+- Forgetting that .NET's `PriorityQueue` is a min-heap.
+
+## Kth Largest Element in an Array
+
+### Problem Statement
+
+Return the kth largest element (by sorted order, not distinct value) of an unsorted array.
+
+### Explanation
+
+A min-heap of size `k` always holds the `k` largest values seen so far, so its root is the kth largest. This avoids sorting the whole array and works on streams.
+
+### Approach
+
+- Enqueue each number.
+- If the heap size exceeds `k`, remove the smallest.
+- The root is the answer.
+
+### Time Complexity
+
+O(n log k)
+
+### Space Complexity
+
+O(k)
+
+### C# Implementation
+
+```csharp
+public static int FindKthLargest(int[] nums, int k)
+{
+    var heap = new PriorityQueue<int, int>();
+    foreach (var n in nums)
+    {
+        heap.Enqueue(n, n);
+        if (heap.Count > k) heap.Dequeue();
+    }
+    return heap.Peek();
+}
+```
+
+### Example
+
+`nums = [3,2,1,5,6,4], k = 2` → `5`
+
+### Common Interview Questions
+
+- How does Quickselect give O(n) average time?
+- Which approach suits a continuous stream?
+
+### Common Mistakes
+
+- Returning the kth smallest by mixing up the heap direction.
+- Assuming duplicates are removed.
+
+## Merge K Sorted Lists
+
+### Problem Statement
+
+Merge `k` sorted linked lists into one sorted linked list.
+
+### Explanation
+
+Keep the current head of every list in a min-heap keyed by value. Repeatedly take the smallest node, append it to the result and push its successor.
+
+### Approach
+
+- Enqueue every non-null head.
+- While the heap has items, dequeue the smallest, link it to the tail and enqueue its `next`.
+
+### Time Complexity
+
+O(N log k) where N is the total number of nodes.
+
+### Space Complexity
+
+O(k) for the heap.
+
+### C# Implementation
+
+```csharp
+public class ListNode
+{
+    public int val;
+    public ListNode? next;
+    public ListNode(int val = 0, ListNode? next = null) { this.val = val; this.next = next; }
+}
+
+public static ListNode? MergeKLists(ListNode?[] lists)
+{
+    var heap = new PriorityQueue<ListNode, int>();
+    foreach (var head in lists)
+        if (head != null) heap.Enqueue(head, head.val);
+
+    var dummy = new ListNode();
+    var tail = dummy;
+    while (heap.TryDequeue(out var node, out _))
+    {
+        tail.next = node;
+        tail = node;
+        if (node.next != null) heap.Enqueue(node.next, node.next.val);
+    }
+    return dummy.next;
+}
+```
+
+### Example
+
+`[[1,4,5],[1,3,4],[2,6]]` → `1→1→2→3→4→4→5→6`
+
+### Common Interview Questions
+
+- How does divide and conquer (merging pairs) compare?
+- What if the lists are very large and come from disk?
+
+### Common Mistakes
+
+- Enqueuing null heads.
+- Forgetting the dummy node, which complicates the empty case.
+
+# Category: Intervals & Greedy
+
+## Merge Intervals
+
+### Problem Statement
+
+Given a list of intervals `[start, end]`, merge all overlapping intervals.
+
+### Explanation
+
+After sorting by start, any interval that overlaps the previous merged one must start no later than that one's end. Overlapping intervals are combined by extending the end.
+
+### Approach
+
+- Sort by start.
+- For each interval, if its start is `<=` the last merged end, set the last end to the maximum of both ends; otherwise add it as a new interval.
+
+### Time Complexity
+
+O(n log n)
+
+### Space Complexity
+
+O(n) for the output.
+
+### C# Implementation
+
+```csharp
+public static int[][] Merge(int[][] intervals)
+{
+    if (intervals.Length == 0) return Array.Empty<int[]>();
+    var sorted = intervals.OrderBy(i => i[0]).ToArray();
+    var merged = new List<int[]> { new[] { sorted[0][0], sorted[0][1] } };
+    foreach (var current in sorted.Skip(1))
+    {
+        var last = merged[^1];
+        if (current[0] <= last[1])
+            last[1] = Math.Max(last[1], current[1]);
+        else
+            merged.Add(new[] { current[0], current[1] });
+    }
+    return merged.ToArray();
+}
+```
+
+### Example
+
+`[[1,3],[2,6],[8,10],[15,18]]` → `[[1,6],[8,10],[15,18]]`
+
+### Common Interview Questions
+
+- Are `[1,2]` and `[2,3]` overlapping? (Depends on the requirement.)
+- How would you insert one interval into an already merged list?
+
+### Common Mistakes
+
+- Not sorting first.
+- Replacing the end with the new end instead of taking the maximum (loses containment cases like `[1,10]`, `[2,3]`).
+- Mutating the caller's input arrays.
+
+## Jump Game
+
+### Problem Statement
+
+Each element is the maximum jump length from that position. Starting at index 0, can you reach the last index?
+
+### Explanation
+
+A greedy scan tracks the farthest index reachable so far. If the current index is beyond that, it is unreachable and the answer is false.
+
+### Approach
+
+- Keep `reach = 0`.
+- For each `i`: if `i > reach` return false; update `reach = max(reach, i + nums[i])`.
+- If the loop finishes, return true.
+
+### Time Complexity
+
+O(n)
+
+### Space Complexity
+
+O(1)
+
+### C# Implementation
+
+```csharp
+public static bool CanJump(int[] nums)
+{
+    int reach = 0;
+    for (int i = 0; i < nums.Length; i++)
+    {
+        if (i > reach) return false;
+        reach = Math.Max(reach, i + nums[i]);
+    }
+    return true;
+}
+```
+
+### Example
+
+`[2,3,1,1,4]` → `true`; `[3,2,1,0,4]` → `false`
+
+### Common Interview Questions
+
+- Why does greedy work here when DP also works?
+- How do you compute the minimum number of jumps?
+
+### Common Mistakes
+
+- Stopping the scan at the first zero.
+- Off-by-one when checking `i > reach`.
+
+# Category: Backtracking
+
+## Subsets
+
+### Problem Statement
+
+Return all possible subsets (the power set) of an array of distinct integers.
+
+### Explanation
+
+Backtracking builds each subset incrementally: at every step, record the current subset, then try adding each later element, recurse, and remove it again.
+
+### Approach
+
+- Maintain a `current` list and a `start` index.
+- Add a copy of `current` to the results on entry.
+- For `i` from `start`, add `nums[i]`, recurse with `i + 1`, then remove the last element.
+
+### Time Complexity
+
+O(n · 2ⁿ)
+
+### Space Complexity
+
+O(n) recursion depth, excluding the output.
+
+### C# Implementation
+
+```csharp
+public static IList<IList<int>> Subsets(int[] nums)
+{
+    var result = new List<IList<int>>();
+    void Backtrack(int start, List<int> current)
+    {
+        result.Add(new List<int>(current));
+        for (int i = start; i < nums.Length; i++)
+        {
+            current.Add(nums[i]);
+            Backtrack(i + 1, current);
+            current.RemoveAt(current.Count - 1);
+        }
+    }
+    Backtrack(0, new List<int>());
+    return result;
+}
+```
+
+### Example
+
+`[1,2,3]` → `[],[1],[1,2],[1,2,3],[1,3],[2],[2,3],[3]`
+
+### Common Interview Questions
+
+- How do you handle duplicates in the input?
+- How does the bitmask approach compare?
+
+### Common Mistakes
+
+- Adding `current` itself instead of a copy, so every result changes later.
+- Forgetting to undo the choice.
+
+## Permutations
+
+### Problem Statement
+
+Return all permutations of an array of distinct integers.
+
+### Explanation
+
+At each position try every element not yet used. A `used` array tracks the choices, and the choice is undone after recursion.
+
+### Approach
+
+- When `current.Count == nums.Length`, add a copy to the results.
+- Otherwise loop over all indices, skip used ones, choose, recurse, un-choose.
+
+### Time Complexity
+
+O(n · n!)
+
+### Space Complexity
+
+O(n) recursion depth plus the `used` array.
+
+### C# Implementation
+
+```csharp
+public static IList<IList<int>> Permute(int[] nums)
+{
+    var result = new List<IList<int>>();
+    var used = new bool[nums.Length];
+    var current = new List<int>();
+
+    void Backtrack()
+    {
+        if (current.Count == nums.Length)
+        {
+            result.Add(new List<int>(current));
+            return;
+        }
+        for (int i = 0; i < nums.Length; i++)
+        {
+            if (used[i]) continue;
+            used[i] = true;
+            current.Add(nums[i]);
+            Backtrack();
+            current.RemoveAt(current.Count - 1);
+            used[i] = false;
+        }
+    }
+
+    Backtrack();
+    return result;
+}
+```
+
+### Example
+
+`[1,2,3]` → six permutations from `[1,2,3]` to `[3,2,1]`
+
+### Common Interview Questions
+
+- How do you avoid duplicates when the input has repeated values?
+- How would you generate the next permutation in place?
+
+### Common Mistakes
+
+- Not resetting `used[i]`.
+- Adding the working list instead of a copy.
+
+# Category: Tries & Union-Find
+
+## Implement Trie (Prefix Tree)
+
+### Problem Statement
+
+Implement a trie supporting `Insert(word)`, `Search(word)` and `StartsWith(prefix)` for lowercase words.
+
+### Explanation
+
+Each node holds up to 26 children and a flag marking the end of a word. Shared prefixes share nodes, which makes prefix queries as fast as the prefix length, independent of the number of stored words.
+
+### Approach
+
+- Walk the characters, creating missing child nodes on insert.
+- `Search` requires the final node to be marked as a word end.
+- `StartsWith` only requires that the path exists.
+
+### Time Complexity
+
+O(L) per operation, where L is the word length.
+
+### Space Complexity
+
+O(total characters inserted × alphabet) in the worst case.
+
+### C# Implementation
+
+```csharp
+public class Trie
+{
+    private sealed class Node
+    {
+        public readonly Node?[] Children = new Node?[26];
+        public bool IsWord;
+    }
+
+    private readonly Node _root = new();
+
+    public void Insert(string word)
+    {
+        var node = _root;
+        foreach (var ch in word)
+        {
+            int i = ch - 'a';
+            node = node.Children[i] ??= new Node();
+        }
+        node.IsWord = true;
+    }
+
+    public bool Search(string word) => Find(word)?.IsWord == true;
+
+    public bool StartsWith(string prefix) => Find(prefix) != null;
+
+    private Node? Find(string s)
+    {
+        var node = _root;
+        foreach (var ch in s)
+        {
+            node = node.Children[ch - 'a'];
+            if (node == null) return null;
+        }
+        return node;
+    }
+}
+```
+
+### Example
+
+Insert `"apple"` → `Search("apple")` true, `Search("app")` false, `StartsWith("app")` true.
+
+### Common Interview Questions
+
+- When would a dictionary per node be better than a 26-array?
+- How would you implement autocomplete or word search in a grid?
+
+### Common Mistakes
+
+- Returning true from `Search` for a prefix that is not a stored word.
+- Not validating input characters outside `a`–`z`.
+
+## Number of Connected Components (Union-Find)
+
+### Problem Statement
+
+Given `n` nodes labelled `0..n-1` and an undirected edge list, return the number of connected components.
+
+### Explanation
+
+Union-Find (disjoint set union) keeps each node's set representative. Starting with `n` components, every successful union of two different sets reduces the count by one. Path compression and union by size make operations nearly constant time.
+
+### Approach
+
+- Initialise `parent[i] = i` and `size[i] = 1`.
+- For each edge, find both roots; if different, attach the smaller tree to the larger and decrement the count.
+
+### Time Complexity
+
+O(n + E · α(n)), effectively linear.
+
+### Space Complexity
+
+O(n)
+
+### C# Implementation
+
+```csharp
+public static int CountComponents(int n, int[][] edges)
+{
+    var parent = new int[n];
+    var size = new int[n];
+    for (int i = 0; i < n; i++) { parent[i] = i; size[i] = 1; }
+
+    int Find(int x)
+    {
+        while (parent[x] != x)
+        {
+            parent[x] = parent[parent[x]]; // path halving
+            x = parent[x];
+        }
+        return x;
+    }
+
+    int components = n;
+    foreach (var edge in edges)
+    {
+        int a = Find(edge[0]), b = Find(edge[1]);
+        if (a == b) continue;
+        if (size[a] < size[b]) (a, b) = (b, a);
+        parent[b] = a;
+        size[a] += size[b];
+        components--;
+    }
+    return components;
+}
+```
+
+### Example
+
+`n = 5, edges = [[0,1],[1,2],[3,4]]` → `2`
+
+### Common Interview Questions
+
+- How do you detect a cycle in an undirected graph with it?
+- Where is it used? (Kruskal's minimum spanning tree, dynamic connectivity.)
+
+### Common Mistakes
+
+- Counting a union when both nodes already share a root.
+- Skipping path compression, which degrades to O(n) finds.
+
+# Category: Grid & Matrix
+
+## Number of Islands
+
+### Problem Statement
+
+Given a grid of `'1'` (land) and `'0'` (water), count the islands. An island is a group of land cells connected horizontally or vertically.
+
+### Explanation
+
+Scan the grid. Each time unvisited land is found, count one island and flood-fill all connected land so it is not counted again. An explicit stack avoids stack overflow on large grids.
+
+### Approach
+
+- Loop over every cell.
+- On `'1'`, increment the count and push the cell.
+- Pop cells, mark them `'0'`, and push their four land neighbours.
+
+### Time Complexity
+
+O(R · C)
+
+### Space Complexity
+
+O(R · C) worst case for the stack.
+
+### C# Implementation
+
+```csharp
+public static int NumIslands(char[][] grid)
+{
+    if (grid.Length == 0) return 0;
+    int rows = grid.Length, cols = grid[0].Length, count = 0;
+    var directions = new (int dr, int dc)[] { (1, 0), (-1, 0), (0, 1), (0, -1) };
+
+    for (int r = 0; r < rows; r++)
+    {
+        for (int c = 0; c < cols; c++)
+        {
+            if (grid[r][c] != '1') continue;
+            count++;
+            var stack = new Stack<(int r, int c)>();
+            grid[r][c] = '0';
+            stack.Push((r, c));
+            while (stack.Count > 0)
+            {
+                var (cr, cc) = stack.Pop();
+                foreach (var (dr, dc) in directions)
+                {
+                    int nr = cr + dr, nc = cc + dc;
+                    if (nr < 0 || nc < 0 || nr >= rows || nc >= cols || grid[nr][nc] != '1') continue;
+                    grid[nr][nc] = '0';
+                    stack.Push((nr, nc));
+                }
+            }
+        }
+    }
+    return count;
+}
+```
+
+### Example
+
+```text
+11000
+11000
+00100
+00011
+```
+
+→ `3`
+
+### Common Interview Questions
+
+- How would you avoid mutating the input?
+- How can Union-Find solve it, and when is that better (online land additions)?
+
+### Common Mistakes
+
+- Marking cells visited when popped instead of when pushed, which pushes duplicates.
+- Missing bounds checks.
+- Recursive DFS overflowing the stack on a huge grid.
+
+## Rotate Image
+
+### Problem Statement
+
+Rotate an `n × n` matrix 90 degrees clockwise in place.
+
+### Explanation
+
+A clockwise rotation equals a transpose (swap `m[i][j]` with `m[j][i]`) followed by reversing each row.
+
+### Approach
+
+- Transpose across the main diagonal.
+- Reverse every row.
+
+### Time Complexity
+
+O(n²)
+
+### Space Complexity
+
+O(1)
+
+### C# Implementation
+
+```csharp
+public static void Rotate(int[][] matrix)
+{
+    int n = matrix.Length;
+    for (int i = 0; i < n; i++)
+        for (int j = i + 1; j < n; j++)
+            (matrix[i][j], matrix[j][i]) = (matrix[j][i], matrix[i][j]);
+
+    foreach (var row in matrix)
+        Array.Reverse(row);
+}
+```
+
+### Example
+
+`[[1,2,3],[4,5,6],[7,8,9]]` → `[[7,4,1],[8,5,2],[9,6,3]]`
+
+### Common Interview Questions
+
+- How do you rotate counter-clockwise?
+- How would you do it with four-way cell swaps by layer?
+
+### Common Mistakes
+
+- Transposing the whole matrix (`j` from 0) which swaps pairs twice and undoes the work.
+- Allocating a second matrix when in-place is required.
+
+# Category: Design
+
+## LRU Cache
+
+### Problem Statement
+
+Design a cache with a fixed capacity supporting `Get(key)` and `Put(key, value)` in O(1). When full, evict the least recently used entry. Both operations count as a use.
+
+### Explanation
+
+A hash map gives O(1) lookup and a doubly linked list gives O(1) reordering. The list is ordered from most to least recently used, and the map stores each key's list node.
+
+### Approach
+
+- `Get`: if present, move the node to the front and return its value.
+- `Put`: if present, update and move to the front; otherwise if full remove the last node and its map entry, then add the new node at the front.
+
+### Time Complexity
+
+O(1) for `Get` and `Put`.
+
+### Space Complexity
+
+O(capacity)
+
+### C# Implementation
+
+```csharp
+public class LruCache
+{
+    private readonly int _capacity;
+    private readonly Dictionary<int, LinkedListNode<(int Key, int Value)>> _map = new();
+    private readonly LinkedList<(int Key, int Value)> _list = new();
+
+    public LruCache(int capacity)
+    {
+        if (capacity <= 0) throw new ArgumentOutOfRangeException(nameof(capacity));
+        _capacity = capacity;
+    }
+
+    public int Get(int key)
+    {
+        if (!_map.TryGetValue(key, out var node)) return -1;
+        _list.Remove(node);
+        _list.AddFirst(node);
+        return node.Value.Value;
+    }
+
+    public void Put(int key, int value)
+    {
+        if (_map.TryGetValue(key, out var existing))
+        {
+            _list.Remove(existing);
+            _map.Remove(key);
+        }
+        else if (_map.Count == _capacity)
+        {
+            var last = _list.Last!;
+            _list.RemoveLast();
+            _map.Remove(last.Value.Key);
+        }
+        _map[key] = _list.AddFirst((key, value));
+    }
+}
+```
+
+### Example
+
+Capacity 2: `Put(1,1)`, `Put(2,2)`, `Get(1)` → `1`, `Put(3,3)` evicts key 2, `Get(2)` → `-1`.
+
+### Common Interview Questions
+
+- How do you make it thread-safe (a lock, or striped locks, and why `ConcurrentDictionary` alone is not enough)?
+- How would you add expiry (TTL)?
+- How does an LFU cache differ?
+
+### Common Mistakes
+
+- Not updating recency on `Get`.
+- Evicting the list node but leaving its key in the dictionary.
+- Using a `List<T>` or sorted structure, making operations O(n).
+
+# Category: Bit Manipulation
+
+## Single Number
+
+### Problem Statement
+
+Every element appears twice except one. Find the single element in linear time and constant space.
+
+### Explanation
+
+XOR is commutative and associative, `x ^ x = 0` and `x ^ 0 = x`. XOR-ing the whole array cancels all pairs and leaves the single value.
+
+### Approach
+
+- Start with `result = 0` and XOR each element into it.
+
+### Time Complexity
+
+O(n)
+
+### Space Complexity
+
+O(1)
+
+### C# Implementation
+
+```csharp
+public static int SingleNumber(int[] nums)
+{
+    int result = 0;
+    foreach (var n in nums) result ^= n;
+    return result;
+}
+```
+
+### Example
+
+`[4,1,2,1,2]` → `4`
+
+### Common Interview Questions
+
+- What if every other element appears three times?
+- How do you find two single numbers?
+
+### Common Mistakes
+
+- Using a hash set and missing the O(1) space requirement.
+- Assuming the numbers are positive (XOR works for negatives).
+
+## Number of 1 Bits
+
+### Problem Statement
+
+Return the number of set bits in an unsigned 32-bit integer.
+
+### Explanation
+
+`n & (n - 1)` clears the lowest set bit, so looping until `n` is zero runs once per set bit (Brian Kernighan's algorithm). .NET also offers `BitOperations.PopCount`, which uses a hardware instruction.
+
+### Approach
+
+- While `n != 0`, set `n &= n - 1` and increment the counter.
+
+### Time Complexity
+
+O(k), where k is the number of set bits (at most 32).
+
+### Space Complexity
+
+O(1)
+
+### C# Implementation
+
+```csharp
+public static int HammingWeight(uint n)
+{
+    int count = 0;
+    while (n != 0)
+    {
+        n &= n - 1;
+        count++;
+    }
+    return count;
+}
+```
+
+### Example
+
+`11` (`1011`) → `3`
+
+### Common Interview Questions
+
+- Why does `n & (n - 1)` clear the lowest set bit?
+- How would you check whether a number is a power of two?
+
+### Common Mistakes
+
+- Looping over all 32 bits unnecessarily.
+- Using a signed shift on negative numbers.

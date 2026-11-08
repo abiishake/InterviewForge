@@ -162,6 +162,190 @@ gateway call.
 -   Ask for trade-offs and failure modes.
 -   Ask how the candidate would test and monitor the solution.
 
+## csharp-005 --- How do generics work in C#, and what are covariance, contravariance and generic constraints?
+
+**question_id:** `csharp-005`\
+**topic_id:** `csharp`\
+**difficulty:** `Senior`\
+**question_type:** `Conceptual / Practical / Scenario`
+
+**Question**
+
+How do generics work in C#, and what are covariance, contravariance and generic constraints?
+
+**Answer**
+
+Generics in .NET are reified: the runtime keeps the real type argument, so `List<int>` stores ints without boxing and `typeof(T)` works, unlike Java's type erasure. Constraints (`where T : class, new(), IComparable<T>`, `notnull`, `unmanaged`, static abstract interface members) tell the compiler what operations are legal. Variance applies only to interfaces and delegates: `out T` (covariance) lets `IEnumerable<Dog>` be used as `IEnumerable<Animal>` because T is only returned; `in T` (contravariance) lets `Action<Animal>` be used as `Action<Dog>` because T is only consumed. Arrays are covariant too but unsafely, which throws `ArrayTypeMismatchException` at runtime. Example: a repository `IReadRepository<out TEntity>` can be injected where a base-entity reader is expected, while `IValidator<in TCommand>` lets one validator for a base command validate derived commands.
+
+**Keywords:** `generics, reified, constraints, covariance, contravariance, out, in, boxing`
+
+**Follow-ups:**
+
+-   Why is List<T> not covariant?
+-   What does the unmanaged constraint allow?
+-   How do generic static abstract members enable generic math?
+
+## csharp-006 --- How do delegates and events work, and how can events cause memory leaks?
+
+**question_id:** `csharp-006`\
+**topic_id:** `csharp`\
+**difficulty:** `Senior`\
+**question_type:** `Conceptual / Practical / Scenario`
+
+**Question**
+
+How do delegates and events work, and how can events cause memory leaks?
+
+**Answer**
+
+A delegate is a type-safe object holding a reference to a method plus its target instance; `Func`, `Action` and `Predicate` cover most needs. An `event` is a delegate field with restricted access: outside code can only subscribe or unsubscribe, not invoke or overwrite it. The publisher's invocation list holds a strong reference to every subscriber, so a long-lived publisher (a static event, a singleton service, a message bus) keeps short-lived subscribers alive forever if they never unsubscribe. Example: a WPF or Blazor component that subscribes to a singleton `NotificationService.Changed` and is never unsubscribed leaks every page instance ever opened. Fixes: unsubscribe in `Dispose`, use weak events or `WeakReference`, or prefer `IObservable`, channels or a message bus with explicit lifetimes. Also copy-and-null-check or use `handler?.Invoke(...)` to stay thread-safe.
+
+**Keywords:** `delegates, events, Func, Action, memory leak, unsubscribe, weak reference, invocation list`
+
+**Follow-ups:**
+
+-   How would you find this leak with a memory dump?
+-   Why does a lambda subscription make unsubscribing hard?
+-   What is the difference between an event and a public delegate field?
+
+## csharp-007 --- Explain LINQ deferred execution and the common pitfalls it causes.
+
+**question_id:** `csharp-007`\
+**topic_id:** `csharp`\
+**difficulty:** `Mid-level`\
+**question_type:** `Conceptual / Practical / Scenario`
+
+**Question**
+
+Explain LINQ deferred execution and the common pitfalls it causes.
+
+**Answer**
+
+Most LINQ operators such as `Where`, `Select` and `OrderBy` do not run when written; they build a pipeline that runs when you enumerate it with `foreach`, `ToList`, `Count`, `First` and similar. This lets queries compose lazily and stop early, but it causes pitfalls. Enumerating twice runs the work twice, and the source may have changed in between. Capturing a loop variable or a mutable local means the query sees the value at enumeration time, not at definition time. Returning a lazy query from a method that holds a `using` resource or a `DbContext` fails because the resource is disposed before enumeration. Multiple enumeration of an expensive query, for example one that calls an API per element, is a classic bug. Example: `var active = users.Where(u => u.IsActive);` followed by adding a user and calling `active.Count()` includes the new user. Materialize with `ToList()` deliberately when you need a snapshot.
+
+**Keywords:** `LINQ, deferred execution, lazy, ToList, multiple enumeration, closure, yield`
+
+**Follow-ups:**
+
+-   Which operators are streaming and which buffer the whole input?
+-   How does yield return implement lazy sequences?
+-   Why does Count() on IEnumerable sometimes not enumerate?
+
+## csharp-008 --- What are Span<T>, Memory<T> and ref structs, and when do they matter?
+
+**question_id:** `csharp-008`\
+**topic_id:** `csharp`\
+**difficulty:** `Senior / Lead`\
+**question_type:** `Conceptual / Practical / Scenario`
+
+**Question**
+
+What are Span<T>, Memory<T> and ref structs, and when do they matter?
+
+**Answer**
+
+`Span<T>` is a ref struct that is a typed, bounds-checked window over contiguous memory (an array segment, stack memory from `stackalloc`, or native memory) with no allocation. Because it can point at the stack, it must live on the stack itself: it cannot be a field of a class, be boxed, cross an `await` or be captured in a lambda. `Memory<T>` is the heap-friendly counterpart that can be stored and used in async code, and you call `.Span` to work on it synchronously. They matter in hot paths such as parsers, protocol readers and string slicing where `Substring` would allocate a new string per token. Example: parsing a CSV line with `ReadOnlySpan<char>` and `int.Parse(span)` avoids thousands of temporary strings per second. Measure with BenchmarkDotNet first; for ordinary business code the added complexity is not worth it.
+
+**Keywords:** `Span, Memory, ref struct, stackalloc, allocation, slicing, ReadOnlySpan, BenchmarkDotNet`
+
+**Follow-ups:**
+
+-   Why can't Span<T> be used across await?
+-   How do you pool large buffers (ArrayPool, MemoryPool)?
+-   What is a readonly ref struct?
+
+## csharp-009 --- What do pattern matching and nullable reference types add to modern C#?
+
+**question_id:** `csharp-009`\
+**topic_id:** `csharp`\
+**difficulty:** `Mid-level`\
+**question_type:** `Conceptual / Practical / Scenario`
+
+**Question**
+
+What do pattern matching and nullable reference types add to modern C#?
+
+**Answer**
+
+Pattern matching lets `is` and `switch` expressions test shape and value together: type, property (`{ Status: Paid }`), relational (`> 100`), list and logical (`and`, `or`, `not`) patterns, with the compiler checking exhaustiveness for switch expressions. It replaces long if/else chains and casts with declarative rules. Nullable reference types (NRT) make nullability part of the type system: `string` means not null and `string?` means may be null, and the compiler warns on possible null dereferences. NRT does not change runtime behavior, so data from JSON, EF or external callers can still be null and needs validation at boundaries. Example: `order switch { { Total: > 1000, Customer.IsVip: true } => Discount.Large, { Total: > 1000 } => Discount.Standard, _ => Discount.None }`. Turn warnings into errors for new projects and use `required` members and `ArgumentNullException.ThrowIfNull` at public boundaries.
+
+**Keywords:** `pattern matching, switch expression, nullable reference types, required, null, exhaustive`
+
+**Follow-ups:**
+
+-   What is the null-forgiving operator and when is it a smell?
+-   How do NRT annotations work with EF Core?
+-   What is a list pattern?
+
+## csharp-010 --- Explain IDisposable, IAsyncDisposable, finalizers and the dispose pattern.
+
+**question_id:** `csharp-010`\
+**topic_id:** `csharp`\
+**difficulty:** `Senior`\
+**question_type:** `Conceptual / Practical / Scenario`
+
+**Question**
+
+Explain IDisposable, IAsyncDisposable, finalizers and the dispose pattern.
+
+**Answer**
+
+The garbage collector reclaims managed memory but not unmanaged resources such as file handles, sockets, database connections or native memory. `IDisposable.Dispose` is the deterministic release point, used with `using`. A finalizer (`~Type`) is only a safety net: it runs non-deterministically on the finalizer thread, delays collection of the object by a GC generation, and should exist only if the type directly owns an unmanaged handle (prefer wrapping it in a `SafeHandle`). The full dispose pattern has `Dispose(bool disposing)` and `GC.SuppressFinalize(this)`; sealed classes without unmanaged fields need only a simple `Dispose`. `IAsyncDisposable` with `await using` is for resources whose cleanup is asynchronous, such as flushing a stream or closing a connection. Example: forgetting to dispose `HttpResponseMessage` or a `SqlDataReader` keeps connections out of the pool until it is exhausted and requests start timing out.
+
+**Keywords:** `IDisposable, IAsyncDisposable, finalizer, SafeHandle, using, dispose pattern, SuppressFinalize`
+
+**Follow-ups:**
+
+-   What happens if Dispose is called twice?
+-   Who disposes objects created by the DI container?
+-   Why are finalizers expensive?
+
+## csharp-011 --- Why are strings immutable in .NET, and when should you use StringBuilder, interning or culture-aware comparison?
+
+**question_id:** `csharp-011`\
+**topic_id:** `csharp`\
+**difficulty:** `Mid-level`\
+**question_type:** `Conceptual / Practical / Scenario`
+
+**Question**
+
+Why are strings immutable in .NET, and when should you use StringBuilder, interning or culture-aware comparison?
+
+**Answer**
+
+Strings are immutable so they are safe to share across threads, safe as dictionary keys (the hash never changes) and cheap to cache or intern. The cost is that every concatenation creates a new object, so building a string in a loop is O(n squared) in copying; `StringBuilder` (or `string.Join`, `string.Create`) avoids that for many appends, while a handful of concatenations is fine because the compiler optimizes them. Interning keeps one instance per distinct literal and is rarely worth manual use. Comparison matters more in practice: `==` and `Equals` are ordinal by default, but `Compare`, `StartsWith`, `ToUpper` and `IndexOf` can be culture-sensitive. Use `StringComparison.OrdinalIgnoreCase` for identifiers and keys, and culture-aware comparison only for user-visible sorting. Example: the Turkish culture lowercases `I` to a dotless `ı`, which breaks `ToLower() == "file"` checks.
+
+**Keywords:** `string, immutable, StringBuilder, interning, ordinal, culture, StringComparison`
+
+**Follow-ups:**
+
+-   What is the Turkish-I problem?
+-   How do string interpolation handlers reduce allocations?
+-   When is string.Create useful?
+
+## csharp-012 --- How do Equals, GetHashCode and == interact, and what goes wrong when they are inconsistent?
+
+**question_id:** `csharp-012`\
+**topic_id:** `csharp`\
+**difficulty:** `Senior`\
+**question_type:** `Conceptual / Practical / Scenario`
+
+**Question**
+
+How do Equals, GetHashCode and == interact, and what goes wrong when they are inconsistent?
+
+**Answer**
+
+Hash-based collections (`Dictionary`, `HashSet`) first call `GetHashCode` to pick a bucket and then `Equals` to confirm a match, so the contract is: equal objects must return equal hash codes, and a hash code must not change while the object is a key. Classes default to reference equality; structs default to field-by-field value equality via reflection, which is slow, so override or use `record struct`. Records generate value equality for you. If you override `Equals` without `GetHashCode`, lookups silently fail or duplicates appear. Example: using a mutable `Customer` class as a dictionary key and then changing its `Id` makes the entry unreachable because it sits in the old bucket. Use immutable key types, `HashCode.Combine`, and override `==` consistently or not at all.
+
+**Keywords:** `Equals, GetHashCode, equality, dictionary key, record, reference equality, HashCode.Combine`
+
+**Follow-ups:**
+
+-   What is IEquatable<T> for?
+-   Why is default struct equality slow?
+-   How does EF Core use equality for tracked entities?
+
 # TOPIC --- ASP.NET Core and Web API
 
 **topic_id:** `aspnet-core`\
@@ -346,6 +530,52 @@ probe immediately, so the bad release never took traffic.
 -   Ask for a real production example.
 -   Ask for trade-offs and failure modes.
 -   Ask how the candidate would test and monitor the solution.
+
+## aspnet-core-006 --- How do model binding, validation and ProblemDetails work in ASP.NET Core APIs?
+
+**question_id:** `aspnet-core-006`\
+**topic_id:** `aspnet-core`\
+**difficulty:** `Mid-level`\
+**question_type:** `Conceptual / Practical / Scenario`
+
+**Question**
+
+How do model binding, validation and ProblemDetails work in ASP.NET Core APIs?
+
+**Answer**
+
+Model binding maps request data (route, query string, headers, body) to action parameters using sources such as `[FromRoute]`, `[FromQuery]`, `[FromBody]` and `[FromServices]`. In controllers with `[ApiController]`, binding failures and validation errors automatically return HTTP 400 with a `ValidationProblemDetails` body, and body parameters are inferred. Validation comes from data annotations (`[Required]`, `[Range]`), `IValidatableObject`, or FluentValidation for richer rules; minimal APIs need explicit validation or a filter. Return errors in the RFC 9457 ProblemDetails shape (`type`, `title`, `status`, `detail`, `errors`) with a consistent `traceId`, and register `AddProblemDetails()` plus an exception handler so unhandled exceptions follow the same format. Never expose stack traces in production. Example: a client receives `{ "status": 400, "errors": { "email": ["Invalid format"] } }` and maps each error to a form field. Validate at the boundary and also enforce business rules in the domain.
+
+**Keywords:** `model binding, validation, ProblemDetails, ApiController, FluentValidation, FromBody, 400`
+
+**Follow-ups:**
+
+-   Where does validation belong: DTO or domain?
+-   How do you validate in minimal APIs?
+-   How do you stop over-posting?
+
+## aspnet-core-007 --- What is the difference between middleware, filters and endpoint handlers, and where do cross-cutting concerns go?
+
+**question_id:** `aspnet-core-007`\
+**topic_id:** `aspnet-core`\
+**difficulty:** `Mid-level`\
+**question_type:** `Conceptual / Practical / Scenario`
+
+**Question**
+
+What is the difference between middleware, filters and endpoint handlers, and where do cross-cutting concerns go?
+
+**Answer**
+
+Middleware runs for every request in the pipeline, before routing resolves an endpoint (for example exception handling, HTTPS redirection, CORS, authentication, logging), and sees only `HttpContext`. MVC filters (authorization, resource, action, exception, result) run inside the MVC or endpoint stage, so they know the selected action, bound arguments and result, which makes them right for concerns tied to controllers such as validation, caching headers or wrapping results. Minimal API endpoint filters play the same role for minimal endpoints. Order matters in middleware: exception handler first, then HTTPS, static files, routing, CORS, authentication, authorization, then endpoints. Choose middleware for global, framework-level concerns and filters for per-endpoint behavior that needs action context. Example: a correlation-id middleware stamps every request, while an `[Idempotent]` filter reads a header and short-circuits only the endpoints that are marked.
+
+**Keywords:** `middleware, filters, pipeline order, endpoint filter, cross-cutting, HttpContext, authorization filter`
+
+**Follow-ups:**
+
+-   What does short-circuiting mean?
+-   Why must authentication come before authorization?
+-   Can filters use dependency injection?
 
 # TOPIC --- REST API Design
 
@@ -706,6 +936,52 @@ query for only the affected IDs.
 -   Ask for trade-offs and failure modes.
 -   Ask how the candidate would test and monitor the solution.
 
+## ef-core-006 --- What are eager, lazy and explicit loading in EF Core, and how do you choose?
+
+**question_id:** `ef-core-006`\
+**topic_id:** `ef-core`\
+**difficulty:** `Mid-level`\
+**question_type:** `Conceptual / Practical / Scenario`
+
+**Question**
+
+What are eager, lazy and explicit loading in EF Core, and how do you choose?
+
+**Answer**
+
+Eager loading uses `Include`/`ThenInclude` to fetch related data in the same query, so it is predictable and avoids extra round trips but can produce large joined result sets (use `AsSplitQuery` to avoid cartesian explosion). Lazy loading (proxies or `ILazyLoader`) fetches related data on first property access, which is convenient but hides queries and is the usual source of N+1 problems and failures after the context is disposed. Explicit loading (`Entry(x).Collection(...).LoadAsync()`) fetches related data on demand under your control. For read endpoints, prefer projection with `Select` into a DTO so only the needed columns come back and no tracking is needed. Example: an order list page selects `OrderId`, `Total` and `CustomerName` directly rather than loading full `Order` graphs. Default to eager loading or projection, avoid lazy loading in web APIs, and check the generated SQL.
+
+**Keywords:** `Include, lazy loading, explicit loading, projection, AsSplitQuery, N+1, cartesian explosion`
+
+**Follow-ups:**
+
+-   When does AsSplitQuery hurt?
+-   Why is lazy loading risky with serialization?
+-   How do you log generated SQL?
+
+## ef-core-007 --- How do value converters, owned types, global query filters and shadow properties help model a domain?
+
+**question_id:** `ef-core-007`\
+**topic_id:** `ef-core`\
+**difficulty:** `Senior`\
+**question_type:** `Conceptual / Practical / Scenario`
+
+**Question**
+
+How do value converters, owned types, global query filters and shadow properties help model a domain?
+
+**Answer**
+
+Value converters translate between a .NET type and a database type, for example storing an enum as a string, a strongly typed `OrderId` as a Guid, or an encrypted value, which supports value objects and primitive-obsession fixes. Owned types (`OwnsOne`/`OwnsMany`) map value objects such as `Address` or `Money` into the owner's table (or a separate table) without their own identity. Global query filters apply a predicate to every query for an entity, commonly for soft delete (`!IsDeleted`) and multi-tenancy (`TenantId == currentTenant`); they can be bypassed with `IgnoreQueryFilters()`, which needs care in admin code, and they interact with required navigations and `Include`. Shadow properties exist in the model and database but not on the class, useful for audit columns like `LastModifiedAt` set in `SaveChanges`. Example: a multi-tenant SaaS filter on `TenantId` prevents forgotten `Where` clauses from leaking data across tenants. Test filters explicitly, and remember they do not apply to raw SQL.
+
+**Keywords:** `value converter, owned type, global query filter, shadow property, soft delete, multi-tenant, IgnoreQueryFilters`
+
+**Follow-ups:**
+
+-   Why is a query filter not a security boundary on its own?
+-   How do you index a soft-delete filter?
+-   How do owned collections map?
+
 # TOPIC --- SQL Server and Query Performance
 
 **topic_id:** `sql`\
@@ -884,6 +1160,29 @@ the latest three invoices per customer for a dashboard.
 -   Ask for a real production example.
 -   Ask for trade-offs and failure modes.
 -   Ask how the candidate would test and monitor the solution.
+
+## sql-006 --- Explain the SQL join types and when window functions are better than self-joins or subqueries.
+
+**question_id:** `sql-006`\
+**topic_id:** `sql`\
+**difficulty:** `Mid-level`\
+**question_type:** `Conceptual / Practical / Scenario`
+
+**Question**
+
+Explain the SQL join types and when window functions are better than self-joins or subqueries.
+
+**Answer**
+
+`INNER JOIN` returns only matching rows; `LEFT JOIN` keeps all rows from the left side with NULLs where there is no match (use it to find missing children with `WHERE right.Id IS NULL`); `RIGHT` and `FULL OUTER` are the symmetric and union variants; `CROSS JOIN` produces the Cartesian product, and `CROSS APPLY` runs a correlated table expression per row. Put conditions on the right table of a LEFT JOIN in the `ON` clause, not the `WHERE`, or you silently turn it into an inner join. Window functions compute over a set of related rows without collapsing them: `ROW_NUMBER`, `RANK`, `DENSE_RANK` for ranking, `LAG`/`LEAD` for previous and next values, and `SUM() OVER (PARTITION BY ... ORDER BY ...)` for running totals. They replace self-joins and correlated subqueries that scan the table repeatedly. Example: a running balance per account is `SUM(Amount) OVER (PARTITION BY AccountId ORDER BY PostedAt)`, in a single pass with a supporting index.
+
+**Keywords:** `JOIN, LEFT JOIN, CROSS APPLY, window function, ROW_NUMBER, LAG, PARTITION BY, running total`
+
+**Follow-ups:**
+
+-   RANK versus DENSE_RANK versus ROW_NUMBER?
+-   Why does a WHERE on a left-joined table change the result?
+-   What frame does a running SUM use by default?
 
 # TOPIC --- Transactions, Isolation and Concurrency
 
@@ -1610,6 +1909,75 @@ then paying for silo operations and persistence design with no benefit.
 -   Ask for trade-offs and failure modes.
 -   Ask how the candidate would test and monitor the solution.
 
+## orleans-004 --- How does grain persistence work in Orleans, and what can go wrong?
+
+**question_id:** `orleans-004`\
+**topic_id:** `orleans`\
+**difficulty:** `Senior`\
+**question_type:** `Conceptual / Practical / Scenario`
+
+**Question**
+
+How does grain persistence work in Orleans, and what can go wrong?
+
+**Answer**
+
+Grains keep state in memory while activated, and persistence lets that state survive deactivation and silo restarts. You declare `IPersistentState<T>` (or inherit legacy `Grain<T>`), configure a named storage provider (Azure Table or Blob, ADO.NET, Cosmos DB, Redis), then call `ReadStateAsync` on activation and `WriteStateAsync` after changes. Orleans does not write automatically, so forgetting `WriteStateAsync` loses changes, and calling it on every change creates a hot write path. Storage uses ETags for optimistic concurrency, so an `InconsistentStateException` can occur if two activations briefly coexist, for example during a network partition. Keep state small and treat grains as the owner of a single entity. Example: a `ShoppingCartGrain` persists its items when they change, while rarely-needed analytics data lives in a separate store. Version your state classes carefully because old serialized data must still deserialize after a deployment.
+
+**Keywords:** `Orleans, IPersistentState, WriteStateAsync, ETag, storage provider, InconsistentStateException`
+
+**Follow-ups:**
+
+-   When would you use event sourcing with Orleans instead?
+-   How do you migrate state schemas?
+-   Should every grain persist state?
+
+## orleans-005 --- What is the Orleans grain lifecycle, and when do you use timers versus reminders?
+
+**question_id:** `orleans-005`\
+**topic_id:** `orleans`\
+**difficulty:** `Senior`\
+**question_type:** `Conceptual / Practical / Scenario`
+
+**Question**
+
+What is the Orleans grain lifecycle, and when do you use timers versus reminders?
+
+**Answer**
+
+A grain activation is created on demand when the first call arrives, runs `OnActivateAsync`, serves calls one at a time, and is deactivated after an idle period (or when the silo shuts down or memory pressure forces it), running `OnDeactivateAsync`. Because deactivation is not guaranteed to run on a crash, never rely on it for essential cleanup. Timers (`RegisterTimer`) are in-memory and per activation: they stop when the grain deactivates and are for frequent, short-lived work, and they do not keep a grain alive by themselves. Reminders are persistent and cluster-managed: they fire even if the grain is not currently activated (reactivating it), survive restarts, and are meant for low-frequency work, at roughly minute granularity or longer. Example: a subscription grain uses a reminder to check renewal daily, and a timer to flush a small in-memory buffer every few seconds.
+
+**Keywords:** `grain lifecycle, activation, deactivation, timer, reminder, OnActivateAsync, idle`
+
+**Follow-ups:**
+
+-   Can a reminder run twice?
+-   Why not use reminders for sub-second work?
+-   How do you keep a grain alive?
+
+## orleans-006 --- How does an Orleans cluster handle membership, placement and hot grains?
+
+**question_id:** `orleans-006`\
+**topic_id:** `orleans`\
+**difficulty:** `Lead`\
+**question_type:** `Conceptual / Practical / Scenario`
+
+**Question**
+
+How does an Orleans cluster handle membership, placement and hot grains?
+
+**Answer**
+
+Silos join a cluster through a membership table (Azure Table, SQL, Consul and so on) and monitor each other with heartbeats; a silo that stops responding is voted dead and its grain activations are recreated elsewhere on the next call. A grain's identity maps to an activation through a distributed directory, and placement strategies decide where a new activation goes: random (default), prefer-local, hash-based, resource-optimized (CPU and memory aware) or custom. A single grain processes one request at a time, so a hot grain (one very popular entity, such as a global counter) becomes a bottleneck regardless of cluster size. Mitigations: shard the key (many counter grains aggregated periodically), mark pure reads as `[ReadOnly]` or `[Reentrant]` where safe, use stateless workers for CPU-bound work, and batch updates. Example: a global leaderboard grain is split into per-region grains that report to an aggregator.
+
+**Keywords:** `membership, silo, placement, directory, hot grain, StatelessWorker, Reentrant, sharding`
+
+**Follow-ups:**
+
+-   What happens to in-flight calls when a silo dies?
+-   When is a StatelessWorker appropriate?
+-   How do you roll out a new grain version?
+
 # TOPIC --- GraphQL, SignalR and WebSockets
 
 **topic_id:** `graphql`\
@@ -1783,6 +2151,75 @@ the hub only broadcasting results.
 -   Ask for trade-offs and failure modes.
 -   Ask how the candidate would test and monitor the solution.
 
+## graphql-006 --- When would you choose gRPC over REST, and what are its streaming modes?
+
+**question_id:** `graphql-006`\
+**topic_id:** `graphql`\
+**difficulty:** `Senior`\
+**question_type:** `Conceptual / Practical / Scenario`
+
+**Question**
+
+When would you choose gRPC over REST, and what are its streaming modes?
+
+**Answer**
+
+gRPC uses HTTP/2 and Protocol Buffers with a contract-first `.proto` file that generates strongly typed clients and servers. Its binary encoding and multiplexed connections make it faster and more compact than JSON over HTTP/1.1, and it has built-in deadlines, cancellation, metadata and four call types: unary, server streaming, client streaming and bidirectional streaming. It is a strong fit for internal service-to-service calls, polyglot environments and low-latency or streaming workloads. REST is better for public APIs, browser clients (browsers cannot call native gRPC without gRPC-Web), caching with HTTP semantics, and easy debugging with curl. Example: an order service calls an inventory service over gRPC unary calls with a 500 ms deadline, while a pricing service streams live price updates to dashboards using server streaming. Evolve `.proto` files by only adding fields with new numbers, never renumbering or reusing them.
+
+**Keywords:** `gRPC, Protocol Buffers, HTTP/2, streaming, deadline, proto, gRPC-Web, contract-first`
+
+**Follow-ups:**
+
+-   How do you version a proto contract?
+-   What do deadlines add over timeouts?
+-   Why is gRPC awkward for browsers?
+
+## graphql-007 --- What challenges come with gRPC in ASP.NET Core and Kubernetes, and how are they solved?
+
+**question_id:** `graphql-007`\
+**topic_id:** `graphql`\
+**difficulty:** `Senior`\
+**question_type:** `Conceptual / Practical / Scenario`
+
+**Question**
+
+What challenges come with gRPC in ASP.NET Core and Kubernetes, and how are they solved?
+
+**Answer**
+
+Because gRPC reuses one long-lived HTTP/2 connection with many multiplexed calls, a Layer-4 load balancer or a Kubernetes ClusterIP Service balances connections, not requests, so all calls from one client land on one pod. Fixes: use a Layer-7 (HTTP/2-aware) proxy or mesh such as Envoy, Linkerd, Istio or YARP, use a headless service with client-side load balancing, or configure the client with multiple connections. Other practical points: ASP.NET Core gRPC needs HTTP/2 with TLS (Kestrel endpoint configuration), set deadlines on every client call and propagate cancellation, use interceptors for logging, auth and retries, and configure retry policies through the service config only for idempotent calls. Use health checking (`grpc.health.v1`) for probes and `gRPC-Web` or JSON transcoding for browser and REST clients. Example: after scaling an API to six pods, only one pod handled traffic until a Linkerd sidecar enabled per-request balancing.
+
+**Keywords:** `gRPC, HTTP/2, load balancing, headless service, Envoy, interceptor, deadline, Kestrel, JSON transcoding`
+
+**Follow-ups:**
+
+-   How do you secure gRPC with mTLS?
+-   Why do retries need idempotency?
+-   What is gRPC JSON transcoding?
+
+## graphql-008 --- How do you version and evolve a GraphQL schema without breaking clients?
+
+**question_id:** `graphql-008`\
+**topic_id:** `graphql`\
+**difficulty:** `Mid-level`\
+**question_type:** `Conceptual / Practical / Scenario`
+
+**Question**
+
+How do you version and evolve a GraphQL schema without breaking clients?
+
+**Answer**
+
+GraphQL avoids URL versioning by evolving a single schema continuously. Additive changes are safe: new fields, types and optional arguments do not break existing queries because clients only request what they name. For removals, mark the field `@deprecated(reason: "...")`, monitor usage through operation tracing or a schema registry, and remove it only when no active client uses it. Avoid breaking changes such as making a nullable field non-null, changing a type, or adding required arguments. Make fields nullable by default where partial failure is plausible so one failing resolver does not null out the parent, and use dedicated payload and input types for mutations so they can grow. Example: replacing `name` with `fullName` is done by adding `fullName`, deprecating `name`, checking for zero traffic over a release cycle, then deleting it. Tools such as schema checks in CI and persisted queries make this safe at scale.
+
+**Keywords:** `GraphQL, schema evolution, deprecated, breaking change, nullable, persisted queries, schema registry`
+
+**Follow-ups:**
+
+-   How do you detect unused fields?
+-   Why are mutation payload types recommended?
+-   What is schema stitching versus federation?
+
 # TOPIC --- Angular, React and Frontend Engineering
 
 **topic_id:** `frontend`\
@@ -1926,6 +2363,75 @@ same-origin endpoints and never sees a token.
 -   Ask for a real production example.
 -   Ask for trade-offs and failure modes.
 -   Ask how the candidate would test and monitor the solution.
+
+## frontend-005 --- How do Blazor Server, Blazor WebAssembly and the .NET 8 unified model differ?
+
+**question_id:** `frontend-005`\
+**topic_id:** `frontend`\
+**difficulty:** `Mid-level`\
+**question_type:** `Conceptual / Practical / Scenario`
+
+**Question**
+
+How do Blazor Server, Blazor WebAssembly and the .NET 8 unified model differ?
+
+**Answer**
+
+Blazor lets you write interactive web UI in C# with Razor components. Blazor Server runs components on the server and sends UI diffs to the browser over a SignalR connection: fast startup, small download and direct access to server resources, but every interaction has network latency, the server holds per-user circuit state in memory, and a dropped connection interrupts the user. Blazor WebAssembly downloads the .NET runtime and app to the browser and runs there: no persistent connection, works offline and offloads server CPU, but a larger first download and anything sensitive must be behind an API. .NET 8 unified these with render modes per component or page: static server-side rendering, interactive Server, interactive WebAssembly, or Auto (starts on Server, then switches to WebAssembly). Example: a mostly static marketing and docs site uses static SSR with a few interactive components, while an internal admin tool uses interactive Server for quick development. Choose based on latency, scale, offline needs and team skills.
+
+**Keywords:** `Blazor, WebAssembly, Server, SignalR circuit, render modes, static SSR, Auto, Razor components`
+
+**Follow-ups:**
+
+-   How many concurrent users can a Blazor Server instance hold?
+-   How do you secure a WebAssembly app?
+-   What is prerendering?
+
+## frontend-006 --- How do Angular change detection, OnPush and signals improve performance?
+
+**question_id:** `frontend-006`\
+**topic_id:** `frontend`\
+**difficulty:** `Senior`\
+**question_type:** `Conceptual / Practical / Scenario`
+
+**Question**
+
+How do Angular change detection, OnPush and signals improve performance?
+
+**Answer**
+
+By default Angular (with Zone.js) checks every component in the tree after any async event such as a click, timer or HTTP response, which is simple but wasteful in large screens. `ChangeDetectionStrategy.OnPush` limits a component's checks to when an input reference changes, an event fires in that component or its children, an `async` pipe emits, or `markForCheck` is called. This works best with immutable data and observables, since mutating an object in place will not trigger an update. Signals add fine-grained reactivity: a template reads a signal, Angular tracks that dependency, and only the affected views refresh; `computed` derives values and `effect` runs side effects, and signals are enabling zoneless change detection. Also use `trackBy` (or `track` in the new control flow) in `@for`, lazy-load routes, and defer heavy blocks with `@defer`. Example: a table of 5,000 rows that re-rendered on every keystroke stops doing so with OnPush, immutable row updates and a tracking function.
+
+**Keywords:** `Angular, change detection, OnPush, signals, computed, zoneless, trackBy, @defer`
+
+**Follow-ups:**
+
+-   Why does OnPush not update when I mutate an array?
+-   Signals versus RxJS: when to use each?
+-   How do you profile Angular rendering?
+
+## frontend-007 --- What are Core Web Vitals and how do you improve them for a single-page application?
+
+**question_id:** `frontend-007`\
+**topic_id:** `frontend`\
+**difficulty:** `Mid-level`\
+**question_type:** `Conceptual / Practical / Scenario`
+
+**Question**
+
+What are Core Web Vitals and how do you improve them for a single-page application?
+
+**Answer**
+
+Core Web Vitals are Google's user-centered performance metrics: Largest Contentful Paint (LCP, loading, target under 2.5 s), Interaction to Next Paint (INP, responsiveness, target under 200 ms) and Cumulative Layout Shift (CLS, visual stability, target under 0.1). Improve LCP by shrinking and caching the critical bundle, compressing assets with Brotli, serving through a CDN, preloading the hero image, using modern image formats with correct dimensions, and server-side rendering or prerendering the first view. Improve INP by splitting long tasks, avoiding heavy synchronous work on the main thread, debouncing handlers and moving computation to web workers. Improve CLS by reserving space for images, ads and async content with explicit width and height, and avoiding late font swaps. Measure with Lighthouse in lab conditions and real-user monitoring in the field, because field data is what counts. Example: lazy-loading the charting library cut the initial bundle by 300 KB and moved LCP from 4 s to 2 s.
+
+**Keywords:** `Core Web Vitals, LCP, INP, CLS, lazy loading, CDN, bundle size, Lighthouse, RUM`
+
+**Follow-ups:**
+
+-   Lab data versus field data?
+-   How does code splitting help?
+-   What causes layout shift?
 
 # TOPIC --- Azure Architecture
 
@@ -2248,6 +2754,98 @@ rehosting, is the well-known example.
 -   Ask about trade-offs and failure modes.
 -   Ask how the solution would be tested and monitored.
 
+## aws-004 --- How do IAM roles and policies work in AWS compared with Azure managed identities and RBAC?
+
+**question_id:** `aws-004`\
+**topic_id:** `aws`\
+**difficulty:** `Mid-level`\
+**question_type:** `Conceptual / Practical / Scenario`
+
+**Question**
+
+How do IAM roles and policies work in AWS compared with Azure managed identities and RBAC?
+
+**Answer**
+
+In AWS, IAM identities (users, groups, roles) get permissions from JSON policies that allow or deny actions on resources, with an explicit deny always winning and everything denied by default. Workloads should not use long-lived access keys; they assume an IAM role and receive short-lived credentials, such as an EC2 instance profile, an ECS task role, an EKS IAM role for service accounts (IRSA or Pod Identity) or a Lambda execution role. The closest Azure equivalents are managed identities plus Azure RBAC role assignments, with Entra ID as the identity provider. Differences: AWS policies attach to identities or resources (bucket and queue policies) and use conditions heavily, and cross-account access uses role assumption through STS. Example: a .NET API on ECS reads one S3 bucket and one SQS queue using a task role scoped to exactly those ARNs, with no keys in configuration. Apply least privilege and review with IAM Access Analyzer.
+
+**Keywords:** `IAM, role, policy, STS, assume role, least privilege, IRSA, managed identity`
+
+**Follow-ups:**
+
+-   How does an explicit deny interact with allows?
+-   How would you grant cross-account access?
+-   Why avoid long-lived access keys?
+
+## aws-005 --- Which AWS messaging and storage services map to Azure Service Bus, Storage Queues, Event Grid and Blob Storage?
+
+**question_id:** `aws-005`\
+**topic_id:** `aws`\
+**difficulty:** `Mid-level`\
+**question_type:** `Conceptual / Practical / Scenario`
+
+**Question**
+
+Which AWS messaging and storage services map to Azure Service Bus, Storage Queues, Event Grid and Blob Storage?
+
+**Answer**
+
+SQS is the queue service (standard queues are at-least-once with best-effort ordering; FIFO queues give ordering and deduplication), closest to Service Bus queues or Storage Queues. SNS is pub/sub fan-out, similar to Service Bus topics; the common SNS-to-SQS fan-out gives each consumer its own queue. EventBridge is the event bus with rule-based routing and SaaS integrations, comparable to Event Grid. Kinesis Data Streams (and Amazon MSK for Kafka) compare to Event Hubs. S3 is object storage, equivalent to Blob Storage, with storage classes, lifecycle rules, versioning and pre-signed URLs similar to SAS tokens. Example: an order service publishes `OrderPlaced` to SNS, which fans out to separate SQS queues for billing, inventory and email, each with its own dead-letter queue. Mapping the concepts is useful, but check semantic differences such as delivery guarantees, ordering and maximum message size.
+
+**Keywords:** `SQS, SNS, EventBridge, Kinesis, S3, fan-out, dead-letter queue, pre-signed URL`
+
+**Follow-ups:**
+
+-   SQS standard versus FIFO?
+-   What is the visibility timeout?
+-   When would you choose Kinesis over SQS?
+
+## aws-006 --- What are AWS Lambda cold starts, limits and best practices for .NET?
+
+**question_id:** `aws-006`\
+**topic_id:** `aws`\
+**difficulty:** `Senior`\
+**question_type:** `Conceptual / Practical / Scenario`
+
+**Question**
+
+What are AWS Lambda cold starts, limits and best practices for .NET?
+
+**Answer**
+
+A cold start is the extra latency when Lambda creates a new execution environment, downloads your code, starts the runtime and runs initialization before the first request. .NET cold starts are noticeable because of JIT and assembly loading. Mitigations: Native AOT or ReadyToRun compilation, smaller packages, trimming, doing expensive setup in static initializers (reused across warm invocations), provisioned concurrency for latency-critical paths, and SnapStart where supported. Key limits include a 15 minute maximum duration, memory from 128 MB to 10 GB (CPU scales with memory), a payload cap of 6 MB synchronous, and account-level concurrency limits. Because the environment can be frozen between calls, do not rely on background threads or in-memory state for correctness. Example: an API Gateway to Lambda endpoint that shows 2 second first-call latency can be brought under 300 ms with Native AOT and more memory. Use Lambda for spiky or event-driven work; steady high traffic is often cheaper on containers.
+
+**Keywords:** `Lambda, cold start, provisioned concurrency, Native AOT, SnapStart, concurrency, timeout`
+
+**Follow-ups:**
+
+-   Why does more memory sometimes make Lambda cheaper?
+-   How do you handle partial batch failure from SQS?
+-   How do you reuse database connections safely?
+
+## aws-007 --- How do RDS, Aurora and DynamoDB differ, and how does a VPC keep them private?
+
+**question_id:** `aws-007`\
+**topic_id:** `aws`\
+**difficulty:** `Senior`\
+**question_type:** `Conceptual / Practical / Scenario`
+
+**Question**
+
+How do RDS, Aurora and DynamoDB differ, and how does a VPC keep them private?
+
+**Answer**
+
+RDS runs managed relational engines (SQL Server, PostgreSQL, MySQL) with backups, patching, Multi-AZ failover and read replicas. Aurora is AWS's cloud-native MySQL/PostgreSQL-compatible engine with shared distributed storage, fast failover, more read replicas and optional serverless scaling. DynamoDB is a serverless key-value and document store with single-digit-millisecond latency; you model data around access patterns, choose partition and sort keys carefully to avoid hot partitions, and use secondary indexes, but you give up ad hoc joins. A VPC is your private network: databases belong in private subnets with no public IP, security groups (stateful, per resource) allow only the application tier, network ACLs add stateless subnet rules, and VPC endpoints let services reach S3 or DynamoDB without internet exposure. Example: ECS tasks in private subnets connect to Aurora through a security group that allows port 5432 only from the task's security group.
+
+**Keywords:** `RDS, Aurora, DynamoDB, VPC, security group, private subnet, Multi-AZ, hot partition`
+
+**Follow-ups:**
+
+-   When is DynamoDB a poor choice?
+-   Security group versus network ACL?
+-   How does Multi-AZ differ from a read replica?
+
 # TOPIC --- Docker
 
 **topic_id:** `docker`\
@@ -2353,6 +2951,98 @@ causing OOMKilled while the laptop had plenty of RAM.
 -   Ask for a production example.
 -   Ask about trade-offs and failure modes.
 -   Ask how the solution would be tested and monitored.
+
+## docker-004 --- How do multi-stage builds, layer caching and .dockerignore speed up and shrink .NET images?
+
+**question_id:** `docker-004`\
+**topic_id:** `docker`\
+**difficulty:** `Mid-level`\
+**question_type:** `Conceptual / Practical / Scenario`
+
+**Question**
+
+How do multi-stage builds, layer caching and .dockerignore speed up and shrink .NET images?
+
+**Answer**
+
+A multi-stage Dockerfile builds in a heavy SDK image and copies only the published output into a small ASP.NET runtime image, so compilers and source code never ship. Each instruction creates a cached layer, and a layer is rebuilt only if it or any earlier layer changed. Copy the `.csproj` files and run `dotnet restore` first, then copy the source and publish, so NuGet restore stays cached until dependencies change. A `.dockerignore` excluding `bin`, `obj`, `.git` and `node_modules` shrinks the build context and stops stale artifacts from busting the cache. Example: this typically cuts an image from over 700 MB to roughly 100-200 MB and a no-change rebuild from minutes to seconds. In CI, use BuildKit cache mounts or a registry cache so clean agents also benefit.
+
+**Keywords:** `multi-stage, layer cache, dockerignore, restore, sdk image, runtime image, BuildKit`
+
+**Follow-ups:**
+
+-   Why copy csproj files before the source?
+-   How do you pass a NuGet feed credential without leaking it into a layer?
+-   What is the difference between ENTRYPOINT and CMD?
+
+## docker-005 --- How do Docker volumes, networks and Compose work together for a local .NET stack?
+
+**question_id:** `docker-005`\
+**topic_id:** `docker`\
+**difficulty:** `Mid-level`\
+**question_type:** `Conceptual / Practical / Scenario`
+
+**Question**
+
+How do Docker volumes, networks and Compose work together for a local .NET stack?
+
+**Answer**
+
+Containers have an ephemeral writable layer, so data that must survive restarts goes in a named volume (managed by Docker) or a bind mount (a host path, handy for source during development). Containers on the same user-defined network resolve each other by service name through Docker's built-in DNS, so the API connects to `Host=db` rather than an IP, and only ports you publish with `ports:` are reachable from the host. Docker Compose declares the whole stack (API, SQL Server or PostgreSQL, Redis, a message broker) in one YAML file with environment variables, health checks and `depends_on` with `condition: service_healthy` so the API waits for the database to be ready, not merely started. Example: a SQL Server data volume lets you recreate the container without losing the dev database. Compose is for local and small deployments; production orchestration uses Kubernetes or a managed service.
+
+**Keywords:** `volume, bind mount, network, compose, depends_on, healthcheck, service name, DNS`
+
+**Follow-ups:**
+
+-   Why is depends_on not enough on its own?
+-   How do you persist SQL Server data in Docker?
+-   Which ports should not be published?
+
+## docker-006 --- How do you harden a container image and runtime for security?
+
+**question_id:** `docker-006`\
+**topic_id:** `docker`\
+**difficulty:** `Senior`\
+**question_type:** `Conceptual / Practical / Scenario`
+
+**Question**
+
+How do you harden a container image and runtime for security?
+
+**Answer**
+
+Start with a minimal base: the official `aspnet` runtime image, a Chiseled (distroless-style) Ubuntu image or Alpine, which reduce the attack surface and vulnerability count. Run as a non-root user (Microsoft images provide a built-in `app` user; set `USER app` and listen on port 8080, not 80). Pin base images by version or digest, scan images in CI (Trivy, Defender for Cloud, Grype) and fail the build on critical findings, and rebuild regularly to pick up patches. Keep secrets out of image layers and build args; inject them at runtime from Key Vault, Kubernetes secrets or environment. At runtime drop capabilities, use a read-only root filesystem with a writable temp volume, and set resource limits. Sign images and verify them at admission. Example: a compromised app running as root in a writable container can install tools and persist, while a non-root read-only container makes that much harder.
+
+**Keywords:** `non-root, chiseled, distroless, image scanning, Trivy, read-only filesystem, secrets, digest`
+
+**Follow-ups:**
+
+-   Why should a container not run as root?
+-   What does a read-only root filesystem break in .NET?
+-   How do you sign and verify images?
+
+## docker-007 --- How should a .NET container handle health checks and graceful shutdown?
+
+**question_id:** `docker-007`\
+**topic_id:** `docker`\
+**difficulty:** `Senior`\
+**question_type:** `Conceptual / Practical / Scenario`
+
+**Question**
+
+How should a .NET container handle health checks and graceful shutdown?
+
+**Answer**
+
+Expose separate endpoints: a liveness check that only proves the process is not stuck, and a readiness check that verifies critical dependencies, using ASP.NET Core `MapHealthChecks` with tags. Orchestrators stop a container by sending SIGTERM and, after a grace period, SIGKILL. The generic host handles SIGTERM, stops accepting new requests, waits for in-flight requests and `BackgroundService.StopAsync`, and then exits; make sure `HostOptions.ShutdownTimeout` fits inside the orchestrator's grace period. Use the exec form of ENTRYPOINT (`["dotnet","App.dll"]`) so the .NET process is PID 1 and receives the signal; the shell form wraps it in `sh`, which does not forward signals. Example: on a rolling deploy, a request that takes 20 seconds is cut off when the default 30 second grace period is exceeded, producing 502 errors. Also fail readiness first so the load balancer drains traffic before shutdown.
+
+**Keywords:** `SIGTERM, graceful shutdown, health checks, readiness, liveness, PID 1, ShutdownTimeout, exec form`
+
+**Follow-ups:**
+
+-   What does preStop sleep solve in Kubernetes?
+-   How do you stop a BackgroundService cleanly?
+-   What happens to messages being processed during shutdown?
 
 # TOPIC --- Kubernetes and AKS
 
@@ -2698,6 +3388,75 @@ days.
 -   Ask for trade-offs and failure modes.
 -   Ask how the candidate would test and monitor the solution.
 
+## devops-006 --- How does Terraform manage state, and how do you avoid drift and state corruption?
+
+**question_id:** `devops-006`\
+**topic_id:** `devops`\
+**difficulty:** `Senior`\
+**question_type:** `Conceptual / Practical / Scenario`
+
+**Question**
+
+How does Terraform manage state, and how do you avoid drift and state corruption?
+
+**Answer**
+
+Terraform compares the desired configuration with a state file that records the real resources it created, then plans and applies the difference. State often contains secrets, so store it remotely and encrypted (Azure Storage, S3 with DynamoDB locking or Terraform Cloud), enable state locking so two applies cannot run at once, and restrict access. Drift occurs when resources are changed outside Terraform (a portal click); detect it with scheduled `terraform plan` runs, decide whether to import the change or revert it, and block manual changes with policy and least-privilege access. Split state by environment and ownership (network, platform, application) to limit blast radius and speed up plans. Run `plan` in pull requests and `apply` only from the pipeline after approval. Example: a developer manually widening an NSG rule is caught by the nightly plan, which shows a diff that is reviewed and reverted.
+
+**Keywords:** `Terraform, state, remote state, locking, drift, plan, apply, import, modules`
+
+**Follow-ups:**
+
+-   How do you refactor resources without destroying them?
+-   What belongs in a module?
+-   How do you manage provider and module versions?
+
+## devops-007 --- How do Bicep, ARM templates and Terraform compare for Azure infrastructure?
+
+**question_id:** `devops-007`\
+**topic_id:** `devops`\
+**difficulty:** `Mid-level`\
+**question_type:** `Conceptual / Practical / Scenario`
+
+**Question**
+
+How do Bicep, ARM templates and Terraform compare for Azure infrastructure?
+
+**Answer**
+
+ARM templates are Azure's native JSON deployment format; Bicep is a cleaner domain-specific language that compiles to ARM, with modules, type checking and no separate state file because Azure Resource Manager tracks deployments. Terraform is cloud-agnostic HCL with a plan/apply workflow and its own state, with a large provider ecosystem covering Azure, AWS, Kubernetes, Cloudflare and SaaS. Choose Bicep for an Azure-only estate that wants first-day support for new resource types and no state management; choose Terraform for multi-cloud, a wider ecosystem or when the team already knows it. Either way, keep infrastructure in source control, review changes in pull requests, deploy through a pipeline with what-if or plan output, and parameterize per environment. Example: a team standardizes on Bicep modules for App Service, SQL and Key Vault and deploys them with `az deployment group what-if` before approval.
+
+**Keywords:** `Bicep, ARM, Terraform, IaC, what-if, modules, state, multi-cloud`
+
+**Follow-ups:**
+
+-   How do you manage secrets in IaC?
+-   How do you test infrastructure code?
+-   What is idempotency in IaC?
+
+## devops-008 --- What are Helm charts and GitOps, and how do Argo CD or Flux change deployments?
+
+**question_id:** `devops-008`\
+**topic_id:** `devops`\
+**difficulty:** `Senior`\
+**question_type:** `Conceptual / Practical / Scenario`
+
+**Question**
+
+What are Helm charts and GitOps, and how do Argo CD or Flux change deployments?
+
+**Answer**
+
+Helm packages Kubernetes manifests as a chart with templates and a `values.yaml`, so one chart can be deployed to dev, test and production with different values, versioned, rolled back and shared. GitOps takes the idea further: Git is the single source of truth for the desired cluster state, and an in-cluster controller (Argo CD or Flux) continuously reconciles the cluster to match it. Deployments become pull requests that change the manifest or image tag, giving review, audit history, easy rollback by reverting a commit, and drift correction if someone edits the cluster by hand. The CI pipeline builds and pushes the image and updates the tag in the config repo; it no longer needs cluster credentials, which improves security. Example: promoting a release from staging to production is a merged pull request on the environment folder, and Argo CD shows the sync status and diff. Keep secrets out of Git with sealed secrets or an external secrets operator.
+
+**Keywords:** `Helm, GitOps, Argo CD, Flux, reconciliation, values.yaml, rollback, drift`
+
+**Follow-ups:**
+
+-   Push versus pull deployment?
+-   How do you handle secrets in GitOps?
+-   Helm versus Kustomize?
+
 # TOPIC --- Authentication, OAuth2, OIDC and JWT
 
 **topic_id:** `security`\
@@ -2906,6 +3665,75 @@ test in CI, the leak class was closed.
 -   Ask for a real production example.
 -   Ask for trade-offs and failure modes.
 -   Ask how the candidate would test and monitor the solution.
+
+## security-007 --- How do you use an identity provider such as Microsoft Entra ID, Keycloak or Duende IdentityServer with an ASP.NET Core API?
+
+**question_id:** `security-007`\
+**topic_id:** `security`\
+**difficulty:** `Senior`\
+**question_type:** `Conceptual / Practical / Scenario`
+
+**Question**
+
+How do you use an identity provider such as Microsoft Entra ID, Keycloak or Duende IdentityServer with an ASP.NET Core API?
+
+**Answer**
+
+Do not build your own login and token issuing for anything beyond a demo; delegate to an identity provider (IdP) that implements OpenID Connect and OAuth2. The web app registers as a client and signs users in with the authorization code flow plus PKCE, and the API is registered as a resource or audience and validates bearer tokens through `AddJwtBearer` or `Microsoft.Identity.Web`, checking issuer, audience, signature (via the IdP's JWKS metadata endpoint), lifetime and scopes or roles. Entra ID is the managed choice in Microsoft shops (app registrations, app roles, groups, conditional access, B2B and B2C-style external identities). Keycloak is open source and self-hosted, and Duende IdentityServer is a commercial, highly customizable framework you host yourself. Example: an Angular SPA signs in against Entra ID, calls the API with an access token carrying the `orders.read` scope, and the API enforces it with an authorization policy. Map IdP claims and roles into your own policies and keep authorization data close to the application.
+
+**Keywords:** `Entra ID, Keycloak, Duende, OpenID Connect, PKCE, JwtBearer, app registration, scopes, JWKS`
+
+**Follow-ups:**
+
+-   Why validate the audience claim?
+-   How do you handle key rotation?
+-   Hosted IdP versus self-hosted trade-offs?
+
+## security-008 --- How do machine-to-machine and downstream calls authenticate: client credentials, on-behalf-of and managed identity?
+
+**question_id:** `security-008`\
+**topic_id:** `security`\
+**difficulty:** `Senior`\
+**question_type:** `Conceptual / Practical / Scenario`
+
+**Question**
+
+How do machine-to-machine and downstream calls authenticate: client credentials, on-behalf-of and managed identity?
+
+**Answer**
+
+When a service calls another service without a user, it uses the OAuth2 client credentials flow: it authenticates with a secret, certificate or federated credential and receives an app-only token with application permissions. Certificates or workload identity federation are better than long-lived secrets. When an API must call another API as the signed-in user, it uses the on-behalf-of (OBO) flow: it exchanges the incoming user token for a new token for the downstream audience, keeping the user's identity and consent. In Azure, a managed identity removes stored credentials entirely because the platform issues tokens for Azure resources such as Key Vault and SQL. Do not simply forward the user's original token to every downstream service, because it has the wrong audience and widens the blast radius. Example: a reporting API uses OBO to call the orders API as the user so row-level rules still apply, but uses client credentials for a nightly batch job.
+
+**Keywords:** `client credentials, on-behalf-of, managed identity, app-only token, federated credential, audience`
+
+**Follow-ups:**
+
+-   Why not forward the access token downstream?
+-   How do you cache tokens safely?
+-   What are application versus delegated permissions?
+
+## security-009 --- How should passwords be stored, and how do MFA and passkeys fit in?
+
+**question_id:** `security-009`\
+**topic_id:** `security`\
+**difficulty:** `Mid-level`\
+**question_type:** `Conceptual / Practical / Scenario`
+
+**Question**
+
+How should passwords be stored, and how do MFA and passkeys fit in?
+
+**Answer**
+
+Never store passwords or encrypt them reversibly; store a salted hash from a slow, purpose-built algorithm. ASP.NET Core Identity uses PBKDF2 with a high iteration count by default; Argon2id and bcrypt are good alternatives. A unique random salt per password defeats rainbow tables, and the slow work factor makes brute force expensive; plan for rehashing at login when you raise the cost. Add defenses around the hash: rate limiting and lockout or back-off, breached-password checks, and generic error messages that do not reveal whether the user exists. Multi-factor authentication (TOTP apps, push or hardware keys) blocks most credential-stuffing attacks. Passkeys (WebAuthn/FIDO2) replace passwords with a device-bound public-key credential that cannot be phished, because the browser only signs challenges for the registered origin. Example: after a leaked-password list appears, accounts with MFA stay safe while password-only accounts are taken over.
+
+**Keywords:** `password hashing, PBKDF2, Argon2, bcrypt, salt, MFA, TOTP, passkeys, WebAuthn, lockout`
+
+**Follow-ups:**
+
+-   Why is SHA-256 alone wrong for passwords?
+-   How do you migrate old hashes to a new algorithm?
+-   How do you handle account recovery securely?
 
 # TOPIC --- Application Security and OWASP
 
@@ -3393,6 +4221,29 @@ exposed a slow memory leak that short tests had missed.
 -   Ask for a real production example.
 -   Ask for trade-offs and failure modes.
 -   Ask how the candidate would test and monitor the solution.
+
+## testing-006 --- What is the difference between mocks, stubs, fakes and spies, and when is mocking harmful?
+
+**question_id:** `testing-006`\
+**topic_id:** `testing`\
+**difficulty:** `Mid-level`\
+**question_type:** `Conceptual / Practical / Scenario`
+
+**Question**
+
+What is the difference between mocks, stubs, fakes and spies, and when is mocking harmful?
+
+**Answer**
+
+A stub returns canned answers, a fake is a working lightweight implementation (an in-memory repository), a mock is pre-programmed with expectations about the calls it should receive and fails if they do not happen, and a spy records calls for later assertion. Use these to isolate a unit from slow or non-deterministic dependencies such as the clock, network, message broker and email sender. Mocking is harmful when tests assert the implementation instead of the behavior: heavy `Verify(x => x.Save(...))` checks break on every refactor while the behavior is unchanged, and mocking the database hides query and mapping bugs that only a real provider catches. Prefer state-based assertions, fakes for simple collaborators, and integration tests with real infrastructure (Testcontainers) for data access. Do not mock types you do not own, such as `DbContext`; wrap them or use a real provider. Example: testing a checkout service with a fake payment gateway and fake clock is more stable than twelve chained mock setups.
+
+**Keywords:** `mock, stub, fake, spy, Moq, NSubstitute, Testcontainers, behavior verification, test double`
+
+**Follow-ups:**
+
+-   How do you test time-dependent code?
+-   Why avoid mocking DbContext?
+-   When is verifying a call actually appropriate?
 
 # TOPIC --- Clean Architecture, SOLID and Design Patterns
 
@@ -4757,6 +5608,52 @@ list queries.
 -   Ask about trade-offs and failure modes.
 -   Ask how the solution would be tested and monitored.
 
+## enterprise-004 --- When would you choose SSRS paginated reports versus Power BI dashboards?
+
+**question_id:** `enterprise-004`\
+**topic_id:** `enterprise`\
+**difficulty:** `Mid-level`\
+**question_type:** `Conceptual / Practical / Scenario`
+
+**Question**
+
+When would you choose SSRS paginated reports versus Power BI dashboards?
+
+**Answer**
+
+SSRS (paginated reports) is pixel-perfect, print- and export-oriented reporting: invoices, statements, regulatory forms and operational lists with exact layout, page breaks, headers, subreports and PDF or Excel subscriptions by email. Power BI is interactive, exploratory analytics: dashboards, slicers, drill-through, a semantic model with DAX measures, and self-service for business users. Choose paginated reports when the document itself is the deliverable and must look identical every time, and Power BI when users explore trends and slice data. They can coexist: Power BI Report Server hosts both, and the Power BI service also offers paginated reports. Example: month-end customer statements are generated as PDFs with SSRS, while the finance team explores revenue by region in Power BI. In both cases, point reports at read-optimized views or replicas, not the live transactional tables.
+
+**Keywords:** `SSRS, paginated report, Power BI, DAX, subscription, semantic model, dashboard`
+
+**Follow-ups:**
+
+-   How do you secure row-level data in each tool?
+-   How do you embed a report in an ASP.NET Core app?
+-   Why avoid reporting on the OLTP database?
+
+## enterprise-005 --- How do you design a reliable, incremental SSIS ETL package?
+
+**question_id:** `enterprise-005`\
+**topic_id:** `enterprise`\
+**difficulty:** `Senior`\
+**question_type:** `Conceptual / Practical / Scenario`
+
+**Question**
+
+How do you design a reliable, incremental SSIS ETL package?
+
+**Answer**
+
+Design for restartability and idempotency. Extract only changes using a watermark column, rowversion, change tracking or CDC rather than reloading everything. Land data in staging tables, validate and transform there, then merge into targets in a transaction so a failed run does not leave partial data. Use lookup transforms for dimension keys, route bad rows to an error output table with the reason instead of failing the whole load, and log each run with row counts and start and end times in an audit table. Parameterize connections through project parameters and environments in the SSIS catalog, and run packages from SQL Agent or Azure Data Factory with alerts. Example: a nightly sales load reads rows with a `ModifiedAt` greater than the stored watermark, upserts them into the warehouse and advances the watermark only after commit. Test by re-running the same batch and confirming the result does not change.
+
+**Keywords:** `SSIS, ETL, incremental load, watermark, CDC, staging, idempotent, error output`
+
+**Follow-ups:**
+
+-   How do you handle late-arriving dimension data?
+-   Change tracking versus CDC?
+-   How do you monitor package failures?
+
 # TOPIC --- AI-Assisted Development, RAG and MCP
 
 **topic_id:** `ai`\
@@ -5217,6 +6114,52 @@ pull request becomes the release bottleneck.
 -   Ask about trade-offs and failure modes.
 -   Ask how the solution would be tested and monitored.
 
+## leadership-004 --- How do you facilitate a design review so it leads to a decision rather than a debate?
+
+**question_id:** `leadership-004`\
+**topic_id:** `leadership`\
+**difficulty:** `Senior / Lead`\
+**question_type:** `Conceptual / Practical / Scenario`
+
+**Question**
+
+How do you facilitate a design review so it leads to a decision rather than a debate?
+
+**Answer**
+
+Send a short design document in advance (problem, constraints, options considered, recommendation, risks) so the meeting is for decisions, not presentations. Name a decision owner and an expected deadline, and state which decision types need consensus and which are the owner's call after input. In the meeting, separate clarifying questions from objections, ask reviewers to state the failure scenario behind a concern, and time-box open debates. Capture the outcome as an Architecture Decision Record with the context, decision and consequences, including dissent, so the reasoning survives staff changes. Prefer reversible decisions made quickly and invest review time in the hard-to-reverse ones such as data models and public APIs. Example: two senior engineers disagreed on a message broker; a one-week spike with agreed success criteria resolved it with data, and the ADR recorded why.
+
+**Keywords:** `design review, ADR, decision owner, trade-offs, disagree and commit, reversible decisions`
+
+**Follow-ups:**
+
+-   How do you handle a senior engineer who blocks consensus?
+-   When is an ADR overkill?
+-   How do you review a design you disagree with?
+
+## leadership-005 --- How do you decide what to do about technical debt and how do you make the case to the business?
+
+**question_id:** `leadership-005`\
+**topic_id:** `leadership`\
+**difficulty:** `Senior / Lead`\
+**question_type:** `Conceptual / Practical / Scenario`
+
+**Question**
+
+How do you decide what to do about technical debt and how do you make the case to the business?
+
+**Answer**
+
+First classify the debt: deliberate and prudent (shipped to hit a date, with a plan), accidental, and bit-rot. Then rank by cost of delay: how often the code is changed, how many incidents or bug fixes it causes, how much it slows delivery, and security or compliance risk. Debt in code nobody touches is low priority. Express the case in business terms, such as fewer incidents, faster lead time or reduced onboarding time, backed by metrics like change failure rate and cycle time rather than "the code is ugly". Fund it steadily instead of with a big rewrite: reserve a percentage of each sprint, pair debt fixes with feature work in the same area (the boy-scout rule), and use the strangler approach for large replacements. Example: a flaky payment module that caused four incidents in a quarter justified two sprints of refactoring and tests with measurable incident reduction afterwards.
+
+**Keywords:** `technical debt, prioritization, cost of delay, strangler, change failure rate, business case`
+
+**Follow-ups:**
+
+-   When is a rewrite justified?
+-   How do you prevent new debt?
+-   How do you track debt visibly?
+
 # TOPIC --- High-Value Senior Comparisons
 
 **topic_id:** `comparisons`\
@@ -5598,6 +6541,98 @@ database read-only for 30 days as a fallback.
 -   Ask for a real production example.
 -   Ask for trade-offs and failure modes.
 -   Ask how the candidate would test and monitor the solution.
+
+## scenarios-008 --- Immigration and legal case management: how would you design document handling, deadlines and auditability?
+
+**question_id:** `scenarios-008`\
+**topic_id:** `scenarios`\
+**difficulty:** `Senior / Lead`\
+**question_type:** `Conceptual / Practical / Scenario`
+
+**Question**
+
+Immigration and legal case management: how would you design document handling, deadlines and auditability?
+
+**Answer**
+
+Treat every case as a long-lived aggregate with a strict status workflow (draft, filed, RFE, approved), and make state transitions explicit and validated so illegal jumps are impossible. Documents are sensitive: store files in encrypted blob storage with metadata in the database, virus-scan uploads, serve via short-lived signed URLs, and apply role- and case-based access so only assigned staff and the client see them. Deadlines (filing windows, response dates) are business-critical, so model them as data, compute them with time-zone and holiday awareness, and drive reminders from a durable scheduler, not in-memory timers. Keep an append-only audit trail of who viewed or changed what and when, because disputes and compliance reviews depend on it. Integrate with government e-filing or form systems through an adapter with idempotent submissions and retries, and store versions of generated forms. Example: a missed response date triggers escalating alerts at 30, 7 and 1 day before the deadline and a visible dashboard of at-risk cases.
+
+**Keywords:** `case management, workflow, audit trail, document security, deadlines, signed URL, retention`
+
+**Follow-ups:**
+
+-   How would you handle a client's right to deletion with legal retention duties?
+-   How do you test deadline calculations across time zones?
+-   How do you support multi-tenant law firms?
+
+## scenarios-009 --- Supply chain integration: how do you handle partner EDI/API feeds, duplicates and inventory accuracy?
+
+**question_id:** `scenarios-009`\
+**topic_id:** `scenarios`\
+**difficulty:** `Senior / Lead`\
+**question_type:** `Conceptual / Practical / Scenario`
+
+**Question**
+
+Supply chain integration: how do you handle partner EDI/API feeds, duplicates and inventory accuracy?
+
+**Answer**
+
+Partners send orders, shipment notices and stock updates over EDI files, SFTP or APIs, often late, duplicated or out of order. Put an anti-corruption layer at the edge that validates and translates each partner format into your canonical model, and store the raw message first so you can replay and audit it. Make processing idempotent using the partner's document number plus type as a natural key, and handle out-of-order updates with version numbers or timestamps so an old stock count never overwrites a newer one. Publish internal events through an outbox, treat inventory as event-driven and eventually consistent, and run periodic reconciliation jobs against the partner's source of truth with alerts on discrepancies. Isolate each partner's failures with queues, retries, a dead-letter queue and per-partner rate limits so one bad feed does not stall others. Example: a duplicated advance shipment notice is detected by its document number and ignored, while a late stock snapshot is stored but not applied because a newer one exists.
+
+**Keywords:** `EDI, anti-corruption layer, idempotency, ordering, outbox, reconciliation, dead-letter queue, inventory`
+
+**Follow-ups:**
+
+-   How do you onboard a new partner quickly?
+-   What do you do when the partner's data is wrong?
+-   How do you reserve stock across channels?
+
+## scenarios-010 --- Oil and gas or IoT telemetry: how would you ingest and query high-volume time-series data?
+
+**question_id:** `scenarios-010`\
+**topic_id:** `scenarios`\
+**difficulty:** `Senior / Lead`\
+**question_type:** `Conceptual / Practical / Scenario`
+
+**Question**
+
+Oil and gas or IoT telemetry: how would you ingest and query high-volume time-series data?
+
+**Answer**
+
+Sensors push millions of small readings a second, so separate ingestion from storage. Devices or gateways publish to Azure IoT Hub, Event Hubs or Kafka, which absorb bursts and decouple producers from consumers. Stream processors (Azure Stream Analytics, Functions, Flink or a .NET worker with batching) validate, deduplicate by device and timestamp, enrich, and write in large batches. Store time-series in a purpose-built engine (Azure Data Explorer, TimescaleDB, InfluxDB) or partitioned tables, with hot, warm and cold tiers: raw data for days, downsampled aggregates (1 min, 1 hour) for months and cheap archive in blob storage for years. Handle late and out-of-order events with event-time windows and watermarks, and alert in the stream on threshold breaches rather than polling the database. Edge devices buffer during connectivity loss and replay later, so ingestion must tolerate duplicates. Example: a pressure sensor outage triggers an alert within seconds from the stream while dashboards query downsampled data in milliseconds.
+
+**Keywords:** `time series, IoT Hub, Event Hubs, stream processing, downsampling, retention tiers, watermark, late events`
+
+**Follow-ups:**
+
+-   How do you size partitions for ingestion?
+-   How do you detect missing sensor data?
+-   How would you retain raw data cheaply?
+
+## scenarios-011 --- Data archiving and compliance: how do you balance retention, audit and a right-to-erasure request?
+
+**question_id:** `scenarios-011`\
+**topic_id:** `scenarios`\
+**difficulty:** `Senior / Lead`\
+**question_type:** `Conceptual / Practical / Scenario`
+
+**Question**
+
+Data archiving and compliance: how do you balance retention, audit and a right-to-erasure request?
+
+**Answer**
+
+Start by classifying data and mapping each class to a legal basis and retention period, because different rules apply (financial records for years, access logs for months, marketing data until consent is withdrawn). Implement retention as automated policy: move cold data to cheaper, immutable archive storage (WORM or legal hold) and purge expired data on a schedule with an audit entry for each purge. For erasure requests (GDPR Article 17), delete or anonymize personal fields, but keep records you must retain by law, documenting the exception. Design for it up front: keep personal data in a small number of identifiable places, use pseudonymous ids elsewhere, and avoid copying it into logs, caches, search indexes and analytics. Event-sourced systems can use crypto-shredding, deleting the per-person encryption key so stored events become unreadable. Back up with retention aligned to policy, since deleted data lingering in backups needs a defined expiry. Example: a closed customer is anonymized in the CRM after 30 days, while invoices are kept for seven years with the name replaced by a reference where the law permits.
+
+**Keywords:** `retention, archive, GDPR, erasure, anonymization, crypto-shredding, legal hold, audit, WORM`
+
+**Follow-ups:**
+
+-   How do you handle erasure in backups?
+-   How do you prove deletion happened?
+-   What is pseudonymization versus anonymization?
 
 # TOPIC --- Modern .NET, Memory and Concurrency
 
@@ -5989,6 +7024,75 @@ table so old months could be switched out and archived instantly.
 -   Ask for a real production example.
 -   Ask for trade-offs and failure modes.
 -   Ask how the candidate would test and monitor the solution.
+
+## data-stores-005 --- When would you use Elasticsearch, and how does its inverted index work?
+
+**question_id:** `data-stores-005`\
+**topic_id:** `data-stores`\
+**difficulty:** `Senior`\
+**question_type:** `Conceptual / Practical / Scenario`
+
+**Question**
+
+When would you use Elasticsearch, and how does its inverted index work?
+
+**Answer**
+
+Elasticsearch (and OpenSearch) is a distributed search engine built on Lucene. It stores documents as JSON and builds an inverted index: an analyzer tokenizes and normalizes text (lowercasing, stemming, stop words), and the index maps each term to the list of documents containing it, which makes full-text search, relevance scoring (BM25), fuzzy matching, faceted aggregation and log analytics fast. Data is split into shards with replicas for scale and availability, and it is near-real-time because new documents become searchable after a periodic refresh, not instantly. It is a poor system of record: no multi-document ACID transactions, and eventual consistency with the source database. Example: products live in SQL Server, and an outbox-driven indexer keeps an Elasticsearch index in sync to power typo-tolerant search with filters and counts. Design mappings explicitly, avoid unbounded field growth, and plan reindexing with aliases.
+
+**Keywords:** `Elasticsearch, inverted index, analyzer, shards, BM25, near real-time, Lucene, aggregation`
+
+**Follow-ups:**
+
+-   How do you keep the index in sync with the database?
+-   Why avoid deep pagination?
+-   Keyword versus text field?
+
+## data-stores-006 --- How do you model data in MongoDB: embed or reference?
+
+**question_id:** `data-stores-006`\
+**topic_id:** `data-stores`\
+**difficulty:** `Mid-level`\
+**question_type:** `Conceptual / Practical / Scenario`
+
+**Question**
+
+How do you model data in MongoDB: embed or reference?
+
+**Answer**
+
+MongoDB stores flexible BSON documents, and schema design follows access patterns instead of normalization. Embed data that is read together, owned by the parent and bounded in size, such as order line items inside an order, so one read returns everything and updates to one document are atomic. Reference data that is shared, large, unbounded or changes independently, such as the customer an order belongs to, then join with `$lookup` or a second query. Watch the 16 MB document limit and avoid arrays that grow without bound. Multi-document transactions exist but are slower and used sparingly. Index fields used in filters and sorts, and use compound indexes that match query shape. Example: a blog post embeds its small set of tags but references its author, while comments, which can grow into thousands, go in their own collection with a post id.
+
+**Keywords:** `MongoDB, embed, reference, document, $lookup, access patterns, index, 16 MB`
+
+**Follow-ups:**
+
+-   How do you handle schema versioning?
+-   When would you prefer SQL instead?
+-   What is a shard key?
+
+## data-stores-007 --- How do PostgreSQL and SQL Server differ in features that matter to a .NET team?
+
+**question_id:** `data-stores-007`\
+**topic_id:** `data-stores`\
+**difficulty:** `Senior`\
+**question_type:** `Conceptual / Practical / Scenario`
+
+**Question**
+
+How do PostgreSQL and SQL Server differ in features that matter to a .NET team?
+
+**Answer**
+
+Both are mature relational engines and EF Core supports both, so the choice is usually about licensing, tooling and features. PostgreSQL is open source with no per-core licensing, rich types (JSONB with GIN indexes, arrays, ranges, enums), extensions (PostGIS, pg_trgm, pgvector), partial and expression indexes, and MVCC where readers do not block writers by default. SQL Server has strong tooling (SSMS, Profiler, Query Store), deep integration with Azure, SSRS/SSIS, columnstore indexes, Always On availability groups and built-in features that enterprise shops already own. Differences to watch when migrating: identifier casing and quoting (Postgres folds to lowercase), `timestamp with time zone` handling, `SERIAL` or identity columns versus `IDENTITY`, T-SQL versus PL/pgSQL, and different isolation behavior (Postgres has no READ UNCOMMITTED). Example: a team moving to Postgres on Azure Flexible Server saves licence cost but must rewrite stored procedures and re-tune queries using `EXPLAIN ANALYZE`.
+
+**Keywords:** `PostgreSQL, SQL Server, JSONB, MVCC, extensions, Npgsql, EXPLAIN ANALYZE, licensing`
+
+**Follow-ups:**
+
+-   How does vacuum work?
+-   How would you migrate with minimal downtime?
+-   When would you pick JSONB instead of a document database?
 
 # TOPIC --- Behavioral and Situational Interviews
 

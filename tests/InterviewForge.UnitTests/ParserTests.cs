@@ -168,10 +168,10 @@ public class ParserTests
         var dir = FindDataDir();
         var bank = QuestionBankParser.Parse(File.ReadAllText(Path.Combine(dir, "dotnet_10_year_interview_question_bank.md")));
         var matrix = SkillMatrixParser.Parse(File.ReadAllText(Path.Combine(dir, "dotnet_10_year_technology_skill_matrix.md")));
-        Assert.Equal(203, bank.Sum(t => t.Questions.Count));
+        Assert.Equal(251, bank.Sum(t => t.Questions.Count));
         Assert.All(bank.SelectMany(t => t.Questions), q => Assert.False(string.IsNullOrWhiteSpace(q.Answer)));
         Assert.True(matrix.Count >= 15);
-        Assert.True(AlgorithmMarkdownParser.Parse(File.ReadAllText(Path.Combine(dir, "algorithms_csharp.md"))).Count >= 40);
+        Assert.True(AlgorithmMarkdownParser.Parse(File.ReadAllText(Path.Combine(dir, "algorithms_csharp.md"))).Count >= 67);
     }
 
     internal static string FindDataDir()
