@@ -48,6 +48,10 @@ Markdown… (URLs and code blocks allowed)
 -   …
 ```
 
+### Split files (`data/question-bank/*.md`)
+
+Every `*.md` file below `data/question-bank/` (any depth, ordinal file-name order) uses exactly the format above and is imported **in addition to** the legacy `dotnet_10_year_interview_question_bank.md`. Use one file per subject (for example `javascript.md`) and give each topic a `topic_id` that is mapped in `classification-overrides.json`, for example `"js-async": "javascript/asynchronous-javascript"` (section slug / matrix topic slug).
+
 Tolerances: `---`, `--`, `—`, `–` are accepted as separators; trailing pandoc `\` line breaks are removed; a missing `question_id` falls back to the heading id or a slug; unknown fields are ignored.
 
 Difficulty labels are seniority bands, so they are mapped to an **initial estimate** (`Senior` → Advanced, `Senior / Lead` → Expert, `Junior` → Beginner, otherwise Intermediate). You can override per question in the UI.
@@ -66,6 +70,21 @@ The import report (`POST /api/admin/import`) lists every classification with its
 - Sections: `matrix:section:<slug>`; topics: `matrix:topic:<section>/<slug>` or `bank:topic:<topic_id>`.
 - Questions: unique `ExternalId` (= `question_id`); a new id whose normalised text hash already belongs to another question is skipped as a duplicate.
 - Re-imports update changed text/answers/classification in place; user progress, notes, favorites and user-created content are never modified.
+
+## 4b. Real-world code examples overlay (`data/examples/*.md`)
+
+Examples are kept **outside** the question text so a bank can be enriched without rewriting it. Each entry is keyed by `question_id`:
+
+```markdown
+## csharp-001
+One line of context, then a fenced code block.
+
+    ```csharp
+    public readonly record struct Money(decimal Amount, string Currency);
+    ```
+```
+
+At import time the entry is appended to the answer as `**Real-world code example**` + the entry body. Headings inside fenced code are ignored, an id that matches no question is reported as an import warning, and admin-edited questions are left untouched.
 
 ## 5. Algorithms (`algorithms_csharp.md`)
 
