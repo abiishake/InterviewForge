@@ -49,9 +49,10 @@ public class SearchAndImportTests
         var topicsAfterFirst = await f.Db.Topics.CountAsync();
         var second = await importer.ImportAsync(dir);
 
-        Assert.Equal(250, first.QuestionsCreated);
+        // 250 legacy-bank questions (one duplicate is skipped) plus the per-subject files in data/question-bank.
+        Assert.True(first.QuestionsCreated >= 250 + 90, $"expected the split question-bank files to be imported, got {first.QuestionsCreated}");
         Assert.Equal(0, second.QuestionsCreated);
-        Assert.Equal(250, second.QuestionsUnchanged);
+        Assert.Equal(first.QuestionsCreated, second.QuestionsUnchanged);
         Assert.Equal(0, second.TopicsCreated);
         Assert.Equal(0, second.TopicsUpdated);
         Assert.Equal(countAfterFirst, await f.Db.Questions.CountAsync());
@@ -76,7 +77,12 @@ public class SearchAndImportTests
         var mine = await search.SearchAsync("serverless", QuestionFilter.Mine, 1, 50, default);
         Assert.Equal("What are Azure Functions?", Assert.Single(mine.Questions.Items).Text);
 
+        // '%' must be matched literally (LIKE wildcards are escaped). The seed legitimately contains '%' in code
+        // (modulo operators, "99.9%"), so compare with a literal substring count instead of assuming zero hits.
         var wildcard = await search.SearchAsync("%", QuestionFilter.All, 1, 50, default);
-        Assert.Equal(0, wildcard.Questions.TotalCount);
+        var literalMatches = await f.Db.Questions.CountAsync(q => q.SearchText.Contains("%"));
+        var allQuestions = await f.Db.Questions.CountAsync();
+        Assert.Equal(literalMatches, wildcard.Questions.TotalCount);
+        Assert.True(wildcard.Questions.TotalCount < allQuestions, "an unescaped '%' would match every question");
     }
 }

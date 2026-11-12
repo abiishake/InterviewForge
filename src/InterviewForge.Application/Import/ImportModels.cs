@@ -65,6 +65,16 @@ public sealed class ImportOptions
     public string FallbackDataDirectory { get; set; } = "seed";
     public string SkillMatrixFile { get; set; } = "dotnet_10_year_technology_skill_matrix.md";
     public string QuestionBankFile { get; set; } = "dotnet_10_year_interview_question_bank.md";
+    /// <summary>
+    /// Optional folder (relative to the data directory) holding additional question-bank files, one per subject
+    /// (e.g. question-bank/javascript.md). Every *.md file is parsed with the same format as <see cref="QuestionBankFile"/>.
+    /// </summary>
+    public string QuestionBankDirectory { get; set; } = "question-bank";
+    /// <summary>
+    /// Optional folder of "examples overlay" files: real-world code examples keyed by question id that are appended
+    /// to the matching question's answer (see <see cref="ExamplesParser"/>).
+    /// </summary>
+    public string ExamplesDirectory { get; set; } = "examples";
     public string AlgorithmsFile { get; set; } = "algorithms_csharp.md";
     /// <summary>Optional JSON map { "bankTopicId": "section-slug" or "section-slug/topic-slug" } to override automatic classification.</summary>
     public string ClassificationOverridesFile { get; set; } = "classification-overrides.json";
