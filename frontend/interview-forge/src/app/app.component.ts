@@ -100,7 +100,12 @@ const GROUPS: NavGroup[] = [
     <app-dialog-host />
     <div class="toasts" aria-live="polite" [class.above-tabs]="showShell() && !immersive() && !questionPage()">
       @for (t of toast.toasts(); track t.id) {
-        <div class="toast" [class]="'toast ' + t.kind" [attr.role]="t.kind === 'error' ? 'alert' : 'status'" (click)="toast.dismiss(t.id)">{{ t.text }}</div>
+        <div class="toast" [class]="'toast ' + t.kind" [attr.role]="t.kind === 'error' ? 'alert' : 'status'"
+             (mouseenter)="toast.pause(t.id)" (mouseleave)="toast.resume(t.id)" (focusin)="toast.pause(t.id)" (focusout)="toast.resume(t.id)">
+          <span class="toast-text">{{ t.text }}</span>
+          @if (t.action; as act) { <button type="button" class="toast-btn" (click)="toast.runAction(t.id)">{{ act.label }}</button> }
+          <button type="button" class="toast-close" aria-label="Dismiss notification" (click)="toast.dismiss(t.id)">×</button>
+        </div>
       }
     </div>`,
   styles: [`
@@ -127,7 +132,11 @@ const GROUPS: NavGroup[] = [
     .iconbtn:hover { background: var(--bg-hover); }
     .topbar, .rail, .tabbar, .backdrop { display: none; }
     .toasts { position: fixed; right: 18px; bottom: 18px; display: flex; flex-direction: column; gap: 8px; z-index: 50; }
-    .toast { background: var(--bg-card); border: 1px solid var(--border-strong); border-left: 3px solid var(--info); padding: 10px 14px; border-radius: var(--radius-sm); box-shadow: var(--shadow); max-width: 360px; cursor: pointer; font-size: 14px; }
+    .toast { background: var(--bg-card); border: 1px solid var(--border-strong); border-left: 3px solid var(--info); padding: 10px 14px; border-radius: var(--radius-sm); box-shadow: var(--shadow); max-width: 360px; font-size: 14px; display: flex; align-items: center; gap: 10px; }
+    .toast-text { flex: 1; min-width: 0; }
+    .toast-btn { background: none; border: 0; color: var(--accent-text); font: 600 13px var(--font); cursor: pointer; padding: 6px 4px; min-height: 32px; }
+    .toast-close { background: none; border: 0; color: var(--text-muted); font: 20px/1 var(--font); cursor: pointer; padding: 4px 8px; min-width: 32px; min-height: 32px; border-radius: var(--radius-sm); }
+    .toast-close:hover, .toast-btn:hover { background: var(--bg-hover); }
     .toast.error { border-left-color: var(--danger); } .toast.ok { border-left-color: var(--ok); }
 
     /* md: icon rail; the full sidebar becomes an overlay drawer */

@@ -6,10 +6,12 @@ import { Router, RouterLink } from '@angular/router';
 import { SectionDetail } from '../../core/models';
 import { ApiService } from '../../core/services/api.service';
 import { ProgressBarComponent } from '../../shared/components/ui.components';
+import { SkeletonComponent } from '../../shared/ui/skeleton.component';
+import { ErrorStateComponent } from '../../shared/ui/error-state.component';
 
 @Component({
   selector: 'app-section-detail',
-  imports: [FeedbackFormComponent, RouterLink, ProgressBarComponent, DecimalPipe],
+  imports: [FeedbackFormComponent, RouterLink, ProgressBarComponent, DecimalPipe, SkeletonComponent, ErrorStateComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="page">
@@ -37,7 +39,8 @@ import { ProgressBarComponent } from '../../shared/components/ui.components';
             </a>
           }
         </div>
-      } @else { <div class="loading">Loading…</div> }
+      } @else if (failed()) { <app-error-state title="Section not available" hint="It may have been deleted, or the request failed." (retry)="load()" /> }
+      @else { <app-skeleton kind="card" [count]="3" /> }
     </div>`,
   styles: [`.topics { display: grid; gap: 10px; } .topic h3 { margin: 0; } .small { font-size: 13px; margin: 6px 0 10px; } .mono { font-family: var(--mono); font-size: 13px; }`]
 })
@@ -47,5 +50,10 @@ export class SectionDetailComponent {
   async remove(){const s=this.data()?.section;if(s&&await this.dialogs.confirm({title:'Delete section?',message:'All its topics and questions are deleted for every member.',confirmLabel:'Delete',danger:true}))this.api.deleteSection(s.id).subscribe(()=>this.router.navigate(['/sections']));}
   readonly id = input.required<string>();
   readonly data = signal<SectionDetail | null>(null);
-  constructor() { effect(() => { const id = Number(this.id()); this.api.section(id).subscribe(d => this.data.set(d)); }); }
+  readonly failed = signal(false);
+  constructor() { effect(() => { this.id(); this.load(); }); }
+  load(): void {
+    this.failed.set(false); this.data.set(null);
+    this.api.section(Number(this.id())).subscribe({ next: d => this.data.set(d), error: () => this.failed.set(true) });
+  }
 }
