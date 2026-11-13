@@ -20,6 +20,7 @@ const LABELS: Record<RecallRating, string> = { Easy: 'Easy', Okay: 'Okay', Hard:
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="wrap">
+      <p class="sr-only" aria-live="polite">@if (current()) { Question {{ index() + 1 }} of {{ queue().length }} }</p>
       @if (!queue().length && !loading()) {
         <div class="row head"><div><div class="eyebrow">Interview mode</div><h1>Answer out loud, then check yourself</h1></div><span class="spacer"></span><a class="btn ghost" routerLink="/">Exit</a></div>
         <div class="pools">
@@ -34,7 +35,7 @@ const LABELS: Record<RecallRating, string> = { Easy: 'Easy', Okay: 'Okay', Hard:
       } @else if (current(); as q) {
         <div class="topline">
           <button class="btn sm ghost" (click)="reset()"><app-icon name="x" [size]="16" /> End</button>
-          <div class="bar" role="progressbar" [attr.aria-valuenow]="index() + 1" aria-valuemin="1" [attr.aria-valuemax]="queue().length"><div class="fill" [style.width.%]="progressPct()"></div></div>
+          <div class="bar" role="progressbar" aria-label="Session progress" [attr.aria-valuenow]="index() + 1" aria-valuemin="1" [attr.aria-valuemax]="queue().length"><div class="fill" [style.width.%]="progressPct()"></div></div>
           <span class="dim small">{{ index() + 1 }} / {{ queue().length }}</span>
         </div>
         <div class="row dim small meta"><span>{{ q.sectionName }} → {{ q.topicName }}</span><span class="spacer"></span><app-difficulty [value]="q.difficulty" /></div>

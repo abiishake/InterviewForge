@@ -1,33 +1,30 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { ChangeDetectionStrategy, Component, inject, signal, viewChildren } from '@angular/core';
+import { FormsModule, NgForm } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { ApiError } from '../../core/models';
 import { ApiService } from '../../core/services/api.service';
 import { DialogService } from '../../core/services/dialog.service';
+import { FieldValidationDirective, validateForm } from '../../shared/ui/field-validation.directive';
 
 @Component({
   selector: 'app-admin-user-create',
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, FieldValidationDirective],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="narrow">
       <p class="breadcrumb"><a routerLink="/admin/users">Users</a> / New</p>
       <h1>New user</h1>
-      <form class="card stack" (ngSubmit)="save()">
-        <label>Username<input name="username" [(ngModel)]="username" required minlength="3" maxlength="32" pattern="[A-Za-z0-9._-]+" autocapitalize="none" autocomplete="off">
-          @if (err('username')) { <span class="field-error" role="alert">{{ err('username') }}</span> }</label>
-        <label>Display name<input name="displayName" [(ngModel)]="displayName" required maxlength="80" autocomplete="off">
-          @if (err('displayName')) { <span class="field-error" role="alert">{{ err('displayName') }}</span> }</label>
-        <label>Email<input name="email" type="email" [(ngModel)]="email" required maxlength="254" autocomplete="off">
-          @if (err('email')) { <span class="field-error" role="alert">{{ err('email') }}</span> }</label>
+      <form #f="ngForm" class="card stack" (ngSubmit)="save(f)">
+        <label>Username<input appField="Username" patternMessage="Use letters, digits, dot, dash or underscore." [serverError]="err('username')" name="username" [(ngModel)]="username" required minlength="3" maxlength="32" pattern="[A-Za-z0-9._-]+" autocapitalize="none" autocomplete="off"></label>
+        <label>Display name<input appField="Display name" [serverError]="err('displayName')" name="displayName" [(ngModel)]="displayName" required maxlength="80" autocomplete="off"></label>
+        <label>Email<input appField="Email" [serverError]="err('email')" name="email" type="email" [(ngModel)]="email" required maxlength="254" autocomplete="off"></label>
         <label>Role<select name="role" [(ngModel)]="role"><option>Member</option><option>Admin</option></select></label>
         <fieldset class="stack">
           <legend class="muted">Password</legend>
           <label class="checkbox"><input type="radio" name="mode" value="generate" [(ngModel)]="mode"> Generate a temporary password</label>
           <label class="checkbox"><input type="radio" name="mode" value="manual" [(ngModel)]="mode"> Set one manually</label>
           @if (mode === 'manual') {
-            <label>Temporary password<input name="password" type="password" [(ngModel)]="password" minlength="12" maxlength="128" autocomplete="new-password">
-              @if (err('password')) { <span class="field-error" role="alert">{{ err('password') }}</span> }</label>
+            <label>Temporary password<input appField="Temporary password" [serverError]="err('password')" name="password" type="password" [(ngModel)]="password" required minlength="12" maxlength="128" autocomplete="new-password"></label>
           }
           <p class="muted small">The user must change it at first sign-in.</p>
         </fieldset>
@@ -44,11 +41,13 @@ export class AdminUserCreateComponent {
   readonly busy = signal(false);
   readonly errors = signal<Record<string, string[]>>({});
   readonly general = signal('');
+  private fields = viewChildren(FieldValidationDirective);
   username = ''; displayName = ''; email = ''; role = 'Member'; mode: 'generate' | 'manual' = 'generate'; password = '';
 
   err(field: string): string { return (this.errors()[field] ?? []).join(' '); }
 
-  save(): void {
+  save(f: NgForm): void {
+    if (!validateForm(this.fields(), f.control)) return;
     this.busy.set(true); this.errors.set({}); this.general.set('');
     this.api.createUser({
       username: this.username, displayName: this.displayName, email: this.email, role: this.role,

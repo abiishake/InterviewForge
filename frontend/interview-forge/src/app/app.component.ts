@@ -101,7 +101,7 @@ const GROUPS: NavGroup[] = [
     <div class="toasts" aria-live="polite" [class.above-tabs]="showShell() && !immersive() && !questionPage()">
       @for (t of toast.toasts(); track t.id) {
         <div class="toast" [class]="'toast ' + t.kind" [attr.role]="t.kind === 'error' ? 'alert' : 'status'"
-             (mouseenter)="toast.pause(t.id)" (mouseleave)="toast.resume(t.id)" (focusin)="toast.pause(t.id)" (focusout)="toast.resume(t.id)">
+             (keydown.escape)="toast.dismiss(t.id)" (mouseenter)="toast.pause(t.id)" (mouseleave)="toast.resume(t.id)" (focusin)="toast.pause(t.id)" (focusout)="toast.resume(t.id)">
           <span class="toast-text">{{ t.text }}</span>
           @if (t.action; as act) { <button type="button" class="toast-btn" (click)="toast.runAction(t.id)">{{ act.label }}</button> }
           <button type="button" class="toast-close" aria-label="Dismiss notification" (click)="toast.dismiss(t.id)">×</button>

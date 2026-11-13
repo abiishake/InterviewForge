@@ -47,7 +47,7 @@ import { SkeletonComponent } from '../../shared/ui/skeleton.component';
           <h3 class="dim mt-lg">Algorithms</h3>
           <div class="row">@for (a of r.algorithms; track a.id) { <a class="badge info" [routerLink]="['/algorithms', a.slug]">{{ a.name }}</a> }</div>
         }
-        <h3 class="dim mt-lg">{{ r.questions.totalCount }} question{{ r.questions.totalCount === 1 ? '' : 's' }}</h3>
+        <h3 class="dim mt-lg" role="status">{{ r.questions.totalCount }} question{{ r.questions.totalCount === 1 ? '' : 's' }}</h3>
         <app-question-list [items]="r.questions.items" [offset]="(r.questions.page - 1) * r.questions.pageSize" emptyText="No questions match. Try fewer words." />
         <app-pagination [page]="r.questions.page" [pageSize]="r.questions.pageSize" [total]="r.questions.totalCount" (pageChange)="page($event)" />
       } @else if (loading()) { <app-skeleton [count]="5" /> }

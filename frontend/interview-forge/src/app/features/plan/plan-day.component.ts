@@ -41,7 +41,7 @@ import { DifficultyBadgeComponent, ProgressBarComponent, StatusBadgeComponent } 
               @for (i of itemsFor(g.topicId); track i.id) {
                 <li class="item">
                   <a [routerLink]="['/questions', i.questionId]" [queryParams]="{ plan: planIdNum(), day: dayNum() }">
-                    <span [class]="'status-dot ' + i.status"></span>
+                    <span [class]="'status-dot ' + i.status" aria-hidden="true"></span>
                     <span class="qtext">{{ i.questionText }}</span>
                     <app-difficulty [value]="i.difficulty" />
                     <app-status [value]="i.status" />

@@ -200,7 +200,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .md th, .md td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; }
 .md th { background: var(--bg-elev); }
 .md blockquote { border-left: 3px solid var(--border-strong); padding-left: 12px; color: var(--text-muted); }
-.md a::after { content: " ↗"; font-size: .8em; }
+.md a::after { content: " ↗" / ""; font-size: .8em; }
 
 /* progress */
 .empty { text-align: center; padding: 48px 20px; color: var(--text-muted); border: 1px dashed var(--border-strong); border-radius: var(--radius); }

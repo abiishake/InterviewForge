@@ -5,10 +5,11 @@ import { Router, RouterLink } from '@angular/router';
 import { AlgorithmDetail } from '../../core/models';
 import { ApiService } from '../../core/services/api.service';
 import { MarkdownComponent } from '../../shared/components/markdown.component';
+import { TabListDirective } from '../../shared/ui/tab-list.directive';
 
 @Component({
   selector: 'app-algorithm-detail',
-  imports: [FeedbackFormComponent, RouterLink, MarkdownComponent],
+  imports: [FeedbackFormComponent, RouterLink, MarkdownComponent, TabListDirective],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="page narrow">
@@ -18,8 +19,8 @@ import { MarkdownComponent } from '../../shared/components/markdown.component';
         @if(a.canEdit){<div class="row mt"><a class="btn" [routerLink]="['/algorithms',a.slug,'edit']">Edit</a><button class="btn danger" (click)="remove()">Delete</button></div>}
         <app-feedback-form kind="Algorithm" [contentId]="a.id" />
         <div class="row"><span class="badge accent">time {{ a.timeComplexity }}</span><span class="badge info">space {{ a.spaceComplexity }}</span></div>
-        <div class="chips mt phone-only" role="tablist" aria-label="Sections">
-          @for (t of tabs; track t.id) { <button type="button" role="tab" [attr.aria-selected]="tab() === t.id" [class.active]="tab() === t.id" (click)="tab.set(t.id)">{{ t.label }}</button> }
+        <div class="chips mt phone-only" appTabList aria-label="Sections">
+          @for (t of tabs; track t.id) { <button type="button" role="tab" [attr.aria-selected]="tab() === t.id" [attr.tabindex]="tab() === t.id ? 0 : -1" [class.active]="tab() === t.id" (click)="tab.set(t.id)">{{ t.label }}</button> }
         </div>
         <section class="card mt" [class.off]="tab() !== 'problem'"><h3>Problem statement</h3><app-markdown [source]="a.problemStatement" /></section>
         <section class="card mt" [class.off]="tab() !== 'approach'"><h3>Explanation</h3><app-markdown [source]="a.explanation" />
