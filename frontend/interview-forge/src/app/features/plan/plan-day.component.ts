@@ -6,6 +6,7 @@ import { RouterLink } from '@angular/router';
 import { Plan, PlanDayDetail, PlanItem } from '../../core/models';
 import { ApiService } from '../../core/services/api.service';
 import { ToastService } from '../../core/services/toast.service';
+import { createLatest } from '../../core/util/latest';
 import { SkeletonComponent } from '../../shared/ui/skeleton.component';
 import { ErrorStateComponent } from '../../shared/ui/error-state.component';
 import { DifficultyBadgeComponent, ProgressBarComponent, StatusBadgeComponent } from '../../shared/components/ui.components';
@@ -82,12 +83,14 @@ export class PlanDayComponent {
   }
 
   readonly failed = signal(false);
+  private latestPlan = createLatest();
+  private latestDay = createLatest();
 
   load(): void {
     const id = this.planIdNum(), day = this.dayNum();
     this.failed.set(false); this.detail.set(null);
-    this.api.plan(id).subscribe({ next: p => this.plan.set(p), error: () => this.failed.set(true) });
-    this.api.planDay(id, day).subscribe({ next: d => this.detail.set(d), error: () => this.failed.set(true) });
+    this.latestPlan(this.api.plan(id), { next: p => this.plan.set(p), error: () => this.failed.set(true) });
+    this.latestDay(this.api.planDay(id, day), { next: d => this.detail.set(d), error: () => this.failed.set(true) });
   }
 
   itemsFor(topicId: number): PlanItem[] { return this.detail()?.items.filter(i => i.topicId === topicId) ?? []; }

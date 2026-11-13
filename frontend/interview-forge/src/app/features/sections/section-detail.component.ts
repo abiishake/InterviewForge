@@ -6,6 +6,7 @@ import { Router, RouterLink } from '@angular/router';
 import { SectionDetail } from '../../core/models';
 import { ApiService } from '../../core/services/api.service';
 import { ProgressBarComponent } from '../../shared/components/ui.components';
+import { createLatest } from '../../core/util/latest';
 import { SkeletonComponent } from '../../shared/ui/skeleton.component';
 import { ErrorStateComponent } from '../../shared/ui/error-state.component';
 
@@ -51,9 +52,10 @@ export class SectionDetailComponent {
   readonly id = input.required<string>();
   readonly data = signal<SectionDetail | null>(null);
   readonly failed = signal(false);
+  private latestSection = createLatest();
   constructor() { effect(() => { this.id(); this.load(); }); }
   load(): void {
     this.failed.set(false); this.data.set(null);
-    this.api.section(Number(this.id())).subscribe({ next: d => this.data.set(d), error: () => this.failed.set(true) });
+    this.latestSection(this.api.section(Number(this.id())), { next: d => this.data.set(d), error: () => this.failed.set(true) });
   }
 }

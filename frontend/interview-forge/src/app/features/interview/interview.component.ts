@@ -1,8 +1,9 @@
 import { ChangeDetectionStrategy, Component, HostListener, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Observable, map } from 'rxjs';
-import { QuestionDetail, QuestionSummary, RecallRating, ReviewBucket, Section } from '../../core/models';
+import { QuestionDetail, QuestionSummary, RecallRating, ReviewBucket } from '../../core/models';
 import { ApiService } from '../../core/services/api.service';
+import { ReferenceDataService } from '../../core/services/reference-data.service';
 import { ShortcutService } from '../../core/services/shortcut.service';
 import { ToastService } from '../../core/services/toast.service';
 import { MarkdownComponent } from '../../shared/components/markdown.component';
@@ -47,14 +48,14 @@ const LABELS: Record<RecallRating, string> = { Easy: 'Easy', Okay: 'Okay', Hard:
             <div class="row"><a class="btn ghost" [routerLink]="['/questions', q.id]">Open full question</a><span class="spacer"></span><button class="btn ghost" (click)="skip()">Skip</button></div>
           } @else {
             <div class="grid4" role="group" aria-label="How well did you know this?">
-              <button class="btn big ok" (click)="rate('Easy')" [disabled]="rating()"><app-icon name="check" [size]="18" /> Easy <kbd class="hint">1</kbd></button>
-              <button class="btn big ok" (click)="rate('Okay')" [disabled]="rating()">Okay <kbd class="hint">2</kbd></button>
-              <button class="btn big warn" (click)="rate('Hard')" [disabled]="rating()">Hard <kbd class="hint">3</kbd></button>
-              <button class="btn big warn" (click)="rate('DidNotKnow')" [disabled]="rating()"><app-icon name="refresh" [size]="18" /> Didn't know <kbd class="hint">4</kbd></button>
+              <button class="btn big ok" (click)="rate('Easy')"><app-icon name="check" [size]="18" /> Easy <kbd class="hint">1</kbd></button>
+              <button class="btn big ok" (click)="rate('Okay')">Okay <kbd class="hint">2</kbd></button>
+              <button class="btn big warn" (click)="rate('Hard')">Hard <kbd class="hint">3</kbd></button>
+              <button class="btn big warn" (click)="rate('DidNotKnow')"><app-icon name="refresh" [size]="18" /> Didn't know <kbd class="hint">4</kbd></button>
             </div>
           }
         </div>
-      } @else if (loading()) {
+      } @else if (loading() || fetching()) {
         <app-skeleton [count]="6" />
       } @else {
         <div class="card done">
@@ -91,9 +92,10 @@ export class InterviewComponent {
   private api = inject(ApiService);
   private toast = inject(ToastService);
   private shortcuts = inject(ShortcutService);
+  private ref = inject(ReferenceDataService);
   readonly topic = input<string>();
   readonly bucket = input<ReviewBucket>();
-  readonly sections = signal<Section[]>([]);
+  readonly sections = computed(() => this.ref.sections() ?? []);
   readonly queue = signal<QuestionSummary[]>([]);
   readonly index = signal(0);
   readonly current = signal<QuestionDetail | null>(null);
@@ -101,14 +103,17 @@ export class InterviewComponent {
   readonly loading = signal(false);
   readonly emptyPool = signal(false);
   readonly rated = signal(0);
-  /** F2: true while a rating request is in flight, so key repeat or a double tap cannot rate twice. */
-  readonly rating = signal(false);
+  /** True while the current question's detail is still loading (it is usually prefetched, so rarely visible). */
+  readonly fetching = signal(false);
+  /** Question details already fetched this session, so moving to the next card needs no round trip. */
+  private cache = new Map<number, QuestionDetail>();
+  private pending = new Set<number>();
   private counts = signal<Record<RecallRating, number>>({ Easy: 0, Okay: 0, Hard: 0, DidNotKnow: 0 });
   readonly progressPct = computed(() => (this.queue().length ? ((this.index() + 1) / this.queue().length) * 100 : 0));
   readonly summary = computed(() => (Object.keys(LABELS) as RecallRating[]).map(k => ({ label: LABELS[k], count: this.counts()[k] })));
 
   constructor() {
-    this.api.sections().subscribe(s => this.sections.set(s));
+    this.ref.refreshSections().subscribe({ error: () => undefined });
     effect(() => {
       const t = this.topic(), b = this.bucket();
       untracked(() => {
@@ -127,12 +132,18 @@ export class InterviewComponent {
 
   private load(source: Observable<QuestionSummary[]>): void {
     this.loading.set(true); this.emptyPool.set(false); this.rated.set(0);
+    this.cache.clear();
     this.counts.set({ Easy: 0, Okay: 0, Hard: 0, DidNotKnow: 0 });
     source.subscribe({ next: items => this.begin(items), error: () => this.loading.set(false) });
   }
 
   private begin(items: QuestionSummary[]): void {
-    const shuffled = [...items].sort(() => Math.random() - 0.5);
+    // Fisher-Yates: an unbiased shuffle (sorting with a random comparator favours some orders).
+    const shuffled = [...items];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
     this.queue.set(shuffled); this.index.set(0); this.loading.set(false);
     this.emptyPool.set(items.length === 0);
     this.show();
@@ -141,27 +152,55 @@ export class InterviewComponent {
   private show(): void {
     this.revealed.set(false);
     const item = this.queue()[this.index()];
-    if (!item) { this.current.set(null); return; }
-    this.api.question(item.id).subscribe(q => { if (this.queue()[this.index()]?.id === q.id) this.current.set(q); });
+    if (!item) { this.current.set(null); this.fetching.set(false); return; }
+    const hit = this.cache.get(item.id);
+    if (hit) { this.current.set(hit); this.fetching.set(false); }
+    else { this.current.set(null); this.fetching.set(true); }
+    this.fetch(item.id);
+    const next = this.queue()[this.index() + 1];
+    if (next) this.fetch(next.id); // prefetch, so the next card appears without a loading flash
   }
 
+  private fetch(id: number): void {
+    if (this.cache.has(id) || this.pending.has(id)) return;
+    this.pending.add(id);
+    this.api.question(id).subscribe({
+      next: q => {
+        this.pending.delete(id); this.cache.set(id, q);
+        if (this.queue()[this.index()]?.id === id) { this.current.set(q); this.fetching.set(false); }
+      },
+      error: () => {
+        this.pending.delete(id);
+        if (this.queue()[this.index()]?.id === id) { this.fetching.set(false); this.skip(); } // can't show it: move on
+      }
+    });
+  }
+
+  /** Advances at once and saves in the background; a failed save offers a retry instead of blocking the session. */
   rate(r: RecallRating): void {
     const q = this.current();
-    if (!q || this.rating() || !this.revealed()) return;
-    this.rating.set(true);
-    this.api.progress(q.id, { rating: r }).subscribe({
-      next: () => {
-        this.rating.set(false);
-        this.rated.update(n => n + 1);
-        this.counts.update(c => ({ ...c, [r]: c[r] + 1 }));
-        this.skip();
-      },
-      error: () => { this.rating.set(false); this.toast.show('Could not save that rating. Try again.', 'error'); } // stays on the same question
+    if (!q || !this.revealed()) return; // show() hides the answer again, so a double tap or key repeat cannot rate twice
+    this.count(r, 1);
+    this.save(q.id, r);
+    this.skip();
+  }
+
+  private count(r: RecallRating, delta: number): void {
+    this.rated.update(n => n + delta);
+    this.counts.update(c => ({ ...c, [r]: c[r] + delta }));
+  }
+
+  private save(id: number, r: RecallRating): void {
+    this.api.progress(id, { rating: r }, true).subscribe({
+      error: () => {
+        this.count(r, -1);
+        this.toast.show('Could not save your last rating.', 'error', 0, { label: 'Retry', run: () => { this.count(r, 1); this.save(id, r); } });
+      }
     });
   }
 
   skip(): void { this.index.update(i => i + 1); this.show(); }
-  reset(): void { this.queue.set([]); this.current.set(null); this.index.set(0); this.rating.set(false); }
+  reset(): void { this.queue.set([]); this.current.set(null); this.index.set(0); this.fetching.set(false); this.cache.clear(); }
 
   @HostListener('document:keydown', ['$event'])
   onKey(e: KeyboardEvent): void {

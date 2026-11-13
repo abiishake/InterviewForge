@@ -1,7 +1,6 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { Section } from '../../core/models';
-import { ApiService } from '../../core/services/api.service';
+import { ReferenceDataService } from '../../core/services/reference-data.service';
 import { ProgressBarComponent } from '../../shared/components/ui.components';
 import { RingComponent } from '../../shared/ui/ring.component';
 import { SkeletonComponent } from '../../shared/ui/skeleton.component';
@@ -37,12 +36,13 @@ import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
   styles: [`.grow { flex: 1; min-width: 0; } .small { font-size: 13px; margin: 0; } .mono { font-family: var(--mono); font-size: 12px; }`]
 })
 export class SectionsComponent {
-  private api = inject(ApiService);
-  readonly sections = signal<Section[]>([]);
-  readonly state = signal<'loading' | 'ready' | 'error'>('loading');
+  private ref = inject(ReferenceDataService);
+  readonly sections = computed(() => this.ref.sections() ?? []);
+  /** A cached list shows immediately and is refreshed in the background; the skeleton only appears on a cold start. */
+  readonly state = signal<'loading' | 'ready' | 'error'>(this.ref.sections() ? 'ready' : 'loading');
   constructor() { this.load(); }
   load(): void {
-    this.state.set('loading');
-    this.api.sections().subscribe({ next: s => { this.sections.set(s); this.state.set('ready'); }, error: () => this.state.set('error') });
+    if (!this.ref.sections()) this.state.set('loading');
+    this.ref.refreshSections().subscribe({ next: () => this.state.set('ready'), error: () => { if (!this.ref.sections()) this.state.set('error'); } });
   }
 }

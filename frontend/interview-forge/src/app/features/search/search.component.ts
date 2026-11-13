@@ -1,4 +1,6 @@
 import { ChangeDetectionStrategy, Component, effect, inject, input, signal } from '@angular/core';
+import { of } from 'rxjs';
+import { createLatest } from '../../core/util/latest';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { QuestionFilter, SearchResult } from '../../core/models';
@@ -67,6 +69,7 @@ export class SearchComponent {
   readonly filter = input<QuestionFilter>();
   readonly result = signal<SearchResult | null>(null);
   readonly loading = signal(false);
+  private latestSearch = createLatest();
   text = '';
   filterValue: QuestionFilter = 'All';
   readonly suggestions = ['Entity Framework', 'async await', 'RabbitMQ', 'Kubernetes', 'System Design', 'dependency injection', 'Redis', 'OAuth'];
@@ -86,9 +89,9 @@ export class SearchComponent {
   page(p: number): void { this.run(this.lastQuery.q, this.lastQuery.f, p); }
 
   private run(q: string, f: QuestionFilter, page: number): void {
-    if (!q.trim()) { this.result.set(null); return; }
+    if (!q.trim()) { this.latestSearch(of(null), { next: () => { this.result.set(null); this.loading.set(false); } }); return; } // also cancels any search still in flight
     this.lastQuery = { q, f };
     this.loading.set(true);
-    this.api.search(q, f, page).subscribe({ next: r => { this.result.set(r); this.loading.set(false); }, error: () => this.loading.set(false) });
+    this.latestSearch(this.api.search(q, f, page), { next: r => { this.result.set(r); this.loading.set(false); }, error: () => this.loading.set(false) });
   }
 }

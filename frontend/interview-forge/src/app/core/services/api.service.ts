@@ -1,6 +1,7 @@
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpContext, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
+import { SKIP_ERROR_TOAST } from '../interceptors/http-context';
 import {
   AlgorithmDetail, AlgorithmSummary, CreatePlan, Dashboard, Note, OverallProgress, Paged, Plan, PlanDayDetail, PlanDaySummary,
   QuestionDetail, QuestionFilter, QuestionSummary, ReviewBucket, ReviewOverview, SaveQuestion, SearchResult, Section, SectionDetail,
@@ -66,7 +67,10 @@ export class ApiService {
   deletedSeeds() { return this.http.get<{ kind: string; key: string }[]>('/api/admin/deleted-seeds'); }
   restoreSeed(kind: string, key: string) { return this.http.post<Record<string, unknown>>('/api/admin/deleted-seeds/restore', { kind, key }); }
   deleteQuestion(id: number) { return this.http.delete<void>(`${this.base}/questions/${id}`); }
-  progress(id: number, body: UpdateProgress): Observable<UserState> { return this.http.post<UserState>(`${this.base}/questions/${id}/progress`, body); }
+  /** `ownErrorUi` lets the caller present failures itself (e.g. with a Retry action) instead of the global toast. */
+  progress(id: number, body: UpdateProgress, ownErrorUi = false): Observable<UserState> {
+    return this.http.post<UserState>(`${this.base}/questions/${id}/progress`, body, ownErrorUi ? { context: new HttpContext().set(SKIP_ERROR_TOAST, true) } : {});
+  }
   saveNote(id: number, body: string) { return this.http.put<Note | null>(`${this.base}/questions/${id}/note`, { body }); }
   notes(page = 1, pageSize = 25): Observable<Paged<Note>> { return this.http.get<Paged<Note>>(`${this.base}/notes`, { params: this.params({ page, pageSize }) }); }
   tags(): Observable<string[]> { return this.http.get<string[]>(`${this.base}/tags`); }

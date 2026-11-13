@@ -2,6 +2,7 @@ import { DialogService } from '../../core/services/dialog.service';
 import { FeedbackFormComponent } from '../../shared/components/feedback-form.component';
 import { DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, effect, inject, input, signal } from '@angular/core';
+import { createLatest } from '../../core/util/latest';
 import { Router, RouterLink } from '@angular/router';
 import { QuestionFilter, QuestionSummary, Topic } from '../../core/models';
 import { ApiService } from '../../core/services/api.service';
@@ -53,6 +54,8 @@ export class TopicDetailComponent {
   private api = inject(ApiService);private router=inject(Router);private dialogs=inject(DialogService);
   async rename(){const t=this.topic();if(!t)return;const name=await this.dialogs.prompt({title:'Rename topic',inputLabel:'Topic name',value:t.name});if(name)this.api.updateTopic(t.id,t.sectionId,name,t.description).subscribe(()=>this.api.topic(t.id).subscribe(d=>this.topic.set(d)));}
   async remove(){const t=this.topic();if(t&&await this.dialogs.confirm({title:'Delete topic?',message:'All its questions are deleted for every member.',confirmLabel:'Delete',danger:true}))this.api.deleteTopic(t.id).subscribe(()=>this.router.navigate(['/topics']));}
+  private latestTopic = createLatest();
+  private latestQuestions = createLatest();
   readonly id = input.required<string>();
   readonly topic = signal<Topic | null>(null);
   readonly questions = signal<QuestionSummary[]>([]);
@@ -66,7 +69,7 @@ export class TopicDetailComponent {
     effect(() => {
       const id = Number(this.id());
       this.page.set(1);
-      this.api.topic(id).subscribe(t => this.topic.set(t));
+      this.latestTopic(this.api.topic(id), { next: t => this.topic.set(t) });
       this.loadQuestions(id, this.filter());
     });
   }
@@ -79,6 +82,6 @@ export class TopicDetailComponent {
   goPage(p: number): void { this.page.set(p); this.loadQuestions(Number(this.id()), this.filter()); }
   private loadQuestions(id: number, f: QuestionFilter): void {
     this.loadingQs.set(true);
-    this.api.topicQuestions(id, f, this.page(), this.pageSize).subscribe({ next: p => { this.questions.set(p.items); this.total.set(p.totalCount); this.loadingQs.set(false); }, error: () => this.loadingQs.set(false) });
+    this.latestQuestions(this.api.topicQuestions(id, f, this.page(), this.pageSize), { next: p => { this.questions.set(p.items); this.total.set(p.totalCount); this.loadingQs.set(false); }, error: () => this.loadingQs.set(false) });
   }
 }
