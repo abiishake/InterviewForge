@@ -3,12 +3,13 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { SkeletonComponent } from '../../shared/ui/skeleton.component';
 import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
+import { ErrorStateComponent } from '../../shared/ui/error-state.component';
 import { AlgorithmSummary } from '../../core/models';
 import { ApiService } from '../../core/services/api.service';
 
 @Component({
   selector: 'app-algorithms',
-  imports: [RouterLink, FormsModule, SkeletonComponent, EmptyStateComponent],
+  imports: [RouterLink, FormsModule, SkeletonComponent, EmptyStateComponent, ErrorStateComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="page">
@@ -19,6 +20,9 @@ import { ApiService } from '../../core/services/api.service';
         <button type="button" [class.active]="category() === ''" [attr.aria-pressed]="category() === ''" (click)="category.set('')">All</button>
         @for (c of categories(); track c) { <button type="button" [class.active]="category() === c" [attr.aria-pressed]="category() === c" (click)="category.set(c)">{{ c }}</button> }
       </div>
+      @if (state() === 'error') { <app-error-state class="mt" (retry)="load()" /> }
+      @else if (state() === 'loading') { <app-skeleton kind="card" [count]="3" /> }
+      @else {
       @for (g of groups(); track g.category) {
         <h2 class="mt">{{ g.category }}</h2>
         <div class="grid grid-3">
@@ -27,7 +31,8 @@ import { ApiService } from '../../core/services/api.service';
               <div class="row"><span class="badge">time {{ a.timeComplexity }}</span><span class="badge">space {{ a.spaceComplexity }}</span></div></a>
           }
         </div>
-      } @empty { @if (items().length) { <app-empty-state class="mt" icon="code" title="No algorithms match" hint="Try another category or fewer words." /> } @else { <app-skeleton kind="card" [count]="3" /> } }
+      } @empty { @if (items().length) { <app-empty-state class="mt" icon="code" title="No algorithms match" hint="Try another category or fewer words." /> } @else { <app-empty-state class="mt" icon="code" title="No algorithms yet" hint="Add the first one." /> } }
+      }
     </div>`
 })
 export class AlgorithmsComponent {
@@ -42,5 +47,10 @@ export class AlgorithmsComponent {
     for (const a of this.items().filter(x => (!this.category() || x.category === this.category()) && (!q || x.name.toLowerCase().includes(q)))) m.set(a.category, [...(m.get(a.category) ?? []), a]);
     return [...m.entries()].map(([category, items]) => ({ category, items }));
   });
-  constructor() { this.api.algorithms().subscribe(a => this.items.set(a)); }
+  readonly state = signal<'loading' | 'ready' | 'error'>('loading');
+  constructor() { this.load(); }
+  load(): void {
+    this.state.set('loading');
+    this.api.algorithms().subscribe({ next: a => { this.items.set(a); this.state.set('ready'); }, error: () => this.state.set('error') });
+  }
 }

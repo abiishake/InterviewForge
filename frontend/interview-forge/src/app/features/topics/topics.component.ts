@@ -4,10 +4,13 @@ import { RouterLink } from '@angular/router';
 import { Topic } from '../../core/models';
 import { ApiService } from '../../core/services/api.service';
 import { ProgressBarComponent } from '../../shared/components/ui.components';
+import { SkeletonComponent } from '../../shared/ui/skeleton.component';
+import { ErrorStateComponent } from '../../shared/ui/error-state.component';
+import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
 
 @Component({
   selector: 'app-topics',
-  imports: [RouterLink, ProgressBarComponent, FormsModule],
+  imports: [RouterLink, ProgressBarComponent, FormsModule, SkeletonComponent, ErrorStateComponent, EmptyStateComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="page">
@@ -15,6 +18,9 @@ import { ProgressBarComponent } from '../../shared/components/ui.components';
         <input type="search" class="filter" placeholder="Filter topics…" [ngModel]="filter()" (ngModelChange)="filter.set($event)" />
         <label class="checkbox"><input type="checkbox" [ngModel]="withQuestions()" (ngModelChange)="withQuestions.set($event)" /> Only topics with questions</label>
       </div>
+      @if (state() === 'error') { <app-error-state class="mt" (retry)="load()" /> }
+      @else if (state() === 'loading') { <app-skeleton kind="text" [count]="6" /> }
+      @else {
       @for (g of groups(); track g.section) {
         <h2 class="mt">{{ g.section }}</h2>
         <div class="list">
@@ -24,6 +30,7 @@ import { ProgressBarComponent } from '../../shared/components/ui.components';
               <span class="dim mono">{{ t.progress.completed }}/{{ t.progress.total }}</span></a>
           }
         </div>
+      } @empty { <app-empty-state class="mt" icon="filter" title="No topics match" hint="Try a different filter." /> }
       }
     </div>`,
   styles: [`
@@ -50,5 +57,10 @@ export class TopicsComponent {
     }
     return [...map.entries()].map(([section, topics]) => ({ section, topics }));
   });
-  constructor() { this.api.topics().subscribe(t => this.topics.set(t)); }
+  readonly state = signal<'loading' | 'ready' | 'error'>('loading');
+  constructor() { this.load(); }
+  load(): void {
+    this.state.set('loading');
+    this.api.topics().subscribe({ next: t => { this.topics.set(t); this.state.set('ready'); }, error: () => this.state.set('error') });
+  }
 }
