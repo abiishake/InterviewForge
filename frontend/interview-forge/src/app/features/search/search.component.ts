@@ -1,4 +1,6 @@
 import { ChangeDetectionStrategy, Component, effect, inject, input, signal } from '@angular/core';
+import { of } from 'rxjs';
+import { createLatest } from '../../core/util/latest';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { QuestionFilter, SearchResult } from '../../core/models';
@@ -45,10 +47,10 @@ import { SkeletonComponent } from '../../shared/ui/skeleton.component';
           <h3 class="dim mt-lg">Algorithms</h3>
           <div class="row">@for (a of r.algorithms; track a.id) { <a class="badge info" [routerLink]="['/algorithms', a.slug]">{{ a.name }}</a> }</div>
         }
-        <h3 class="dim mt-lg">{{ r.questions.totalCount }} question{{ r.questions.totalCount === 1 ? '' : 's' }}</h3>
+        <h3 class="dim mt-lg" role="status">{{ r.questions.totalCount }} question{{ r.questions.totalCount === 1 ? '' : 's' }}</h3>
         <app-question-list [items]="r.questions.items" [offset]="(r.questions.page - 1) * r.questions.pageSize" emptyText="No questions match. Try fewer words." />
         <app-pagination [page]="r.questions.page" [pageSize]="r.questions.pageSize" [total]="r.questions.totalCount" (pageChange)="page($event)" />
-      } @else if (loading()) { <app-skeleton [count]="5" /> }
+      } @else if (loading()) { <app-skeleton kind="list" [count]="6" /> }
     </div>`,
   styles: [`
     .search-box { display: flex; gap: 8px; margin-top: 14px; }
@@ -67,6 +69,7 @@ export class SearchComponent {
   readonly filter = input<QuestionFilter>();
   readonly result = signal<SearchResult | null>(null);
   readonly loading = signal(false);
+  private latestSearch = createLatest();
   text = '';
   filterValue: QuestionFilter = 'All';
   readonly suggestions = ['Entity Framework', 'async await', 'RabbitMQ', 'Kubernetes', 'System Design', 'dependency injection', 'Redis', 'OAuth'];
@@ -86,9 +89,9 @@ export class SearchComponent {
   page(p: number): void { this.run(this.lastQuery.q, this.lastQuery.f, p); }
 
   private run(q: string, f: QuestionFilter, page: number): void {
-    if (!q.trim()) { this.result.set(null); return; }
+    if (!q.trim()) { this.latestSearch(of(null), { next: () => { this.result.set(null); this.loading.set(false); } }); return; } // also cancels any search still in flight
     this.lastQuery = { q, f };
     this.loading.set(true);
-    this.api.search(q, f, page).subscribe({ next: r => { this.result.set(r); this.loading.set(false); }, error: () => this.loading.set(false) });
+    this.latestSearch(this.api.search(q, f, page), { next: r => { this.result.set(r); this.loading.set(false); }, error: () => this.loading.set(false) });
   }
 }

@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { Topic } from '../../core/models';
-import { ApiService } from '../../core/services/api.service';
+import { ReferenceDataService } from '../../core/services/reference-data.service';
 import { ProgressBarComponent } from '../../shared/components/ui.components';
 import { SkeletonComponent } from '../../shared/ui/skeleton.component';
 import { ErrorStateComponent } from '../../shared/ui/error-state.component';
@@ -19,7 +19,7 @@ import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
         <label class="checkbox"><input type="checkbox" [ngModel]="withQuestions()" (ngModelChange)="withQuestions.set($event)" /> Only topics with questions</label>
       </div>
       @if (state() === 'error') { <app-error-state class="mt" (retry)="load()" /> }
-      @else if (state() === 'loading') { <app-skeleton kind="text" [count]="6" /> }
+      @else if (state() === 'loading') { <app-skeleton kind="list" [count]="8" /> }
       @else {
       @for (g of groups(); track g.section) {
         <h2 class="mt">{{ g.section }}</h2>
@@ -43,8 +43,8 @@ import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
   `]
 })
 export class TopicsComponent {
-  private api = inject(ApiService);
-  readonly topics = signal<Topic[]>([]);
+  private ref = inject(ReferenceDataService);
+  readonly topics = computed<Topic[]>(() => this.ref.topics() ?? []);
   readonly filter = signal('');
   readonly withQuestions = signal(true);
   readonly groups = computed(() => {
@@ -57,10 +57,10 @@ export class TopicsComponent {
     }
     return [...map.entries()].map(([section, topics]) => ({ section, topics }));
   });
-  readonly state = signal<'loading' | 'ready' | 'error'>('loading');
+  readonly state = signal<'loading' | 'ready' | 'error'>(this.ref.topics() ? 'ready' : 'loading');
   constructor() { this.load(); }
   load(): void {
-    this.state.set('loading');
-    this.api.topics().subscribe({ next: t => { this.topics.set(t); this.state.set('ready'); }, error: () => this.state.set('error') });
+    if (!this.ref.topics()) this.state.set('loading');
+    this.ref.refreshTopics().subscribe({ next: () => this.state.set('ready'), error: () => { if (!this.ref.topics()) this.state.set('error'); } });
   }
 }

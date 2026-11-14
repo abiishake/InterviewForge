@@ -88,7 +88,7 @@ import { SkeletonComponent } from '../../shared/ui/skeleton.component';
           }
         </div>
       } @else if (error()) { <div class="error-box" role="alert">{{ error() }}</div> }
-      @else { <app-skeleton kind="card" [count]="4" /> }
+      @else { <app-skeleton kind="stats" [count]="3" /> }
     </div>`,
   styles: [`
     .head p { margin: 0; color: var(--text-muted); }

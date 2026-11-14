@@ -6,92 +6,36 @@
   --mono: ui-monospace, "Cascadia Code", "JetBrains Mono", Consolas, monospace;
   --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px; --space-6: 32px;
   --safe-top: env(safe-area-inset-top, 0px); --safe-bottom: env(safe-area-inset-bottom, 0px);
-  /* light (default when the OS prefers light) */
-  color-scheme: light;
-  --bg: #f6f7f9;
-  --bg-elev: #ffffff;
-  --bg-card: #ffffff;
-  --bg-hover: #e8ebf0;
-  --border: #e1e5eb;
-  --border-strong: #b9c2cf;
-  --text: #111827;
-  --text-muted: #4b5563;
-  --text-dim: #5f6b7a;
-  --on-ok: #fff;
-  --on-warn: #fff;
+  /* Follows the OS unless data-theme forces a mode. Each themed token is written once: light-dark(light, dark). */
+  color-scheme: light dark;
+  --bg: light-dark(#f6f7f9, #0d1117);
+  --bg-elev: light-dark(#ffffff, #131a23);
+  --bg-card: light-dark(#ffffff, #161e29);
+  --bg-hover: light-dark(#e8ebf0, #1c2633);
+  --border: light-dark(#e1e5eb, #253041);
+  --border-strong: light-dark(#b9c2cf, #33425a);
+  --text: light-dark(#111827, #dfe6ee);
+  --text-muted: light-dark(#4b5563, #8b98a9);
+  --text-dim: light-dark(#5f6b7a, #7f8c9e);
+  --on-ok: light-dark(#fff, #04140e);
+  --on-warn: light-dark(#fff, #1a0d02);
   --accent: #f2b33d;
   --accent-ink: #1a1305;
-  --accent-text: #8a4b00;
-  --accent-soft: rgba(242, 179, 61, .2);
-  --ok: #0f7a5a;
-  --ok-soft: #dcf5ec;
-  --warn: #a14a00;
-  --warn-soft: #fdebd6;
-  --danger: #b42318;
-  --danger-soft: #fde4e1;
-  --info: #145fa8;
-  --info-soft: #dcecfb;
-  --code-bg: #f3f4f6;
-  --shadow: 0 8px 24px -12px rgba(0, 0, 0, .35);
+  --accent-text: light-dark(#8a4b00, #f2b33d);
+  --accent-soft: light-dark(rgba(242, 179, 61, .2), rgba(242, 179, 61, .12));
+  --ok: light-dark(#0f7a5a, #3fb68b);
+  --ok-soft: light-dark(#dcf5ec, rgba(63, 182, 139, .14));
+  --warn: light-dark(#a14a00, #e0803a);
+  --warn-soft: light-dark(#fdebd6, rgba(224, 128, 58, .14));
+  --danger: light-dark(#b42318, #e5534b);
+  --danger-soft: light-dark(#fde4e1, rgba(229, 83, 75, .14));
+  --info: light-dark(#145fa8, #5aa9e6);
+  --info-soft: light-dark(#dcecfb, rgba(90, 169, 230, .14));
+  --code-bg: light-dark(#f3f4f6, #0a0e14);
+  --shadow: 0 8px 24px -12px light-dark(rgba(0, 0, 0, .35), rgba(0, 0, 0, .6));
 }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-  --bg: #0d1117;
-  --bg-elev: #131a23;
-  --bg-card: #161e29;
-  --bg-hover: #1c2633;
-  --border: #253041;
-  --border-strong: #33425a;
-  --text: #dfe6ee;
-  --text-muted: #8b98a9;
-  --text-dim: #7f8c9e;
-  --on-ok: #04140e;
-  --on-warn: #1a0d02;
-  --accent: #f2b33d;
-  --accent-ink: #1a1305;
-  --accent-soft: rgba(242, 179, 61, .12);
-  --ok: #3fb68b;
-  --ok-soft: rgba(63, 182, 139, .14);
-  --warn: #e0803a;
-  --warn-soft: rgba(224, 128, 58, .14);
-  --danger: #e5534b;
-  --danger-soft: rgba(229, 83, 75, .14);
-  --info: #5aa9e6;
-  --info-soft: rgba(90, 169, 230, .14);
-  --shadow: 0 8px 24px -12px rgba(0, 0, 0, .6);
-  --accent-text: #f2b33d;
-  --code-bg: #0a0e14;
-  }
-}
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --bg: #0d1117;
-  --bg-elev: #131a23;
-  --bg-card: #161e29;
-  --bg-hover: #1c2633;
-  --border: #253041;
-  --border-strong: #33425a;
-  --text: #dfe6ee;
-  --text-muted: #8b98a9;
-  --text-dim: #7f8c9e;
-  --on-ok: #04140e;
-  --on-warn: #1a0d02;
-  --accent: #f2b33d;
-  --accent-ink: #1a1305;
-  --accent-soft: rgba(242, 179, 61, .12);
-  --ok: #3fb68b;
-  --ok-soft: rgba(63, 182, 139, .14);
-  --warn: #e0803a;
-  --warn-soft: rgba(224, 128, 58, .14);
-  --danger: #e5534b;
-  --danger-soft: rgba(229, 83, 75, .14);
-  --info: #5aa9e6;
-  --info-soft: rgba(90, 169, 230, .14);
-  --shadow: 0 8px 24px -12px rgba(0, 0, 0, .6);
-  --accent-text: #f2b33d;
-  --code-bg: #0a0e14;
-}
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 }
@@ -200,7 +144,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .md th, .md td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; }
 .md th { background: var(--bg-elev); }
 .md blockquote { border-left: 3px solid var(--border-strong); padding-left: 12px; color: var(--text-muted); }
-.md a::after { content: " ↗"; font-size: .8em; }
+.md a::after { content: " ↗" / ""; font-size: .8em; }
 
 /* progress */
 .empty { text-align: center; padding: 48px 20px; color: var(--text-muted); border: 1px dashed var(--border-strong); border-radius: var(--radius); }

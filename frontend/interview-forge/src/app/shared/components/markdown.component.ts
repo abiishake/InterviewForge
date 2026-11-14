@@ -1,4 +1,4 @@
-import { AfterViewChecked, ChangeDetectionStrategy, Component, ElementRef, computed, inject, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, afterRenderEffect, computed, inject, input } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import DOMPurify from 'dompurify';
 import { Marked } from 'marked';
@@ -57,12 +57,17 @@ export function renderMarkdown(source: string | null | undefined): string {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `<div class="md" [innerHTML]="html()"></div>`
 })
-export class MarkdownComponent implements AfterViewChecked {
+export class MarkdownComponent {
   private sanitizer = inject(DomSanitizer);
   private host = inject<ElementRef<HTMLElement>>(ElementRef);
 
-  /** Adds a "Copy" button to every code block once the sanitised HTML is in the DOM. */
-  ngAfterViewChecked(): void {
+  constructor() {
+    // Runs only when the rendered HTML changes (after it is in the DOM), instead of after every change-detection pass.
+    afterRenderEffect(() => { this.html(); this.addCopyButtons(); });
+  }
+
+  /** Adds a "Copy" button to every code block. */
+  private addCopyButtons(): void {
     this.host.nativeElement.querySelectorAll('pre').forEach(pre => {
       if (pre.parentElement?.classList.contains('code-wrap')) return;
       const wrap = document.createElement('div');

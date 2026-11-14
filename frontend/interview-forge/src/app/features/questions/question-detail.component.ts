@@ -118,7 +118,7 @@ type NoteState = 'idle' | 'dirty' | 'saving' | 'saved';
         </div>
       } @else if (notFound()) {
         <app-empty-state icon="alert" title="Question not found" hint="It may have been deleted."><a class="btn" routerLink="/sections">Browse the library</a></app-empty-state>
-      } @else { <app-skeleton [count]="6" /> }
+      } @else { <app-skeleton kind="detail" /> }
     </div>`,
   styles: [`
     .page { max-width: 1200px; }
@@ -177,15 +177,20 @@ export class QuestionDetailComponent {
   readonly noteLabel = computed(() => ({ idle: '', dirty: 'Unsaved…', saving: 'Saving…', saved: 'Saved ✓' })[this.noteState()]);
 
   private updates = new Subject<{ id: number; body: UpdateProgress }>();
+  /** Last state the server confirmed. Optimistic changes are shown at once and rolled back to this if a save fails. */
+  private confirmed: { id: number; state: UserState; difficulty: Difficulty } | null = null;
   private loads = new Subject<{ id: number; topic?: number }>();
   private notes = new Subject<{ id: number; body: string }>();
 
   constructor() {
     // F1: every response carries the id it belongs to and is dropped if the user already moved to another question.
     this.updates.pipe(
-      concatMap(x => this.api.progress(x.id, x.body).pipe(map(state => ({ id: x.id, state })), catchError(() => EMPTY))),
+      concatMap(x => this.api.progress(x.id, x.body).pipe(
+        map(state => ({ id: x.id, state, body: x.body })),
+        catchError(() => { this.rollback(x.id); return EMPTY; }) // the error interceptor has already toasted
+      )),
       takeUntilDestroyed()
-    ).subscribe(({ id, state }) => this.applyState(id, state));
+    ).subscribe(({ id, state, body }) => { this.applyState(id, state); this.announce(id, body); });
 
     // switchMap cancels the previous request when the route changes.
     this.loads.pipe(
@@ -193,7 +198,7 @@ export class QuestionDetailComponent {
       takeUntilDestroyed()
     ).subscribe(q => {
       if (!q) return;
-      this.q.set(q); this.note = q.userState.note ?? ''; this.noteState.set('idle');
+      this.q.set(q); this.confirmed = { id: q.id, state: q.userState, difficulty: q.difficulty }; this.note = q.userState.note ?? ''; this.noteState.set('idle');
       if (q.userState.status === 'NotStarted') this.update({ status: 'InProgress' });
     });
 
@@ -245,19 +250,45 @@ export class QuestionDetailComponent {
 
   private applyState(id: number, state: UserState): void {
     const current = this.q();
+    const difficulty = state.personalDifficulty ?? this.confirmed?.difficulty ?? current?.difficulty;
+    if (difficulty) this.confirmed = { id, state, difficulty };
     if (!current || current.id !== id) return;
     this.q.set({ ...current, userState: state, difficulty: state.personalDifficulty ?? current.difficulty });
   }
 
+  /** Shows the change immediately; the server's response then replaces it with the authoritative state. */
+  private patch(q: QuestionDetail, body: UpdateProgress): QuestionDetail {
+    const u: UserState = { ...q.userState };
+    if (body.status) u.status = body.status;
+    if (body.isFavorite !== undefined) u.isFavorite = body.isFavorite;
+    if (body.personalDifficulty) u.personalDifficulty = body.personalDifficulty;
+    if (body.rating) u.lastRating = body.rating;
+    return { ...q, userState: u, difficulty: body.personalDifficulty ?? q.difficulty };
+  }
+
+  private rollback(id: number): void {
+    const cur = this.q(), c = this.confirmed;
+    if (cur && c && cur.id === id && c.id === id) this.q.set({ ...cur, userState: c.state, difficulty: c.difficulty });
+  }
+
+  /** Success feedback only once the server has confirmed the change. */
+  private announce(id: number, body: UpdateProgress): void {
+    if (body.rating) this.toast.show('Saved for spaced review', 'ok');
+    if (body.isFavorite !== undefined) {
+      this.toast.show(body.isFavorite ? 'Added to favorites' : 'Removed from favorites', 'ok', undefined,
+        { label: 'Undo', run: () => { if (this.q()?.id === id) this.update({ isFavorite: !body.isFavorite }); } });
+    }
+  }
+
   update(body: UpdateProgress): void {
     const q = this.q(); if (!q) return;
+    this.q.set(this.patch(q, body));
     this.updates.next({ id: q.id, body });
-    if (body.isFavorite !== undefined) this.toast.show(body.isFavorite ? 'Added to favorites' : 'Removed from favorites', 'ok');
   }
 
   setStatus(status: 'Completed' | 'NeedsReview' | 'InProgress'): void { this.update({ status }); }
   setDifficulty(d: Difficulty): void { this.update({ personalDifficulty: d }); }
-  rate(rating: RecallRating): void { this.update({ rating }); this.toast.show('Saved for spaced review', 'ok'); }
+  rate(rating: RecallRating): void { this.update({ rating }); }
 
   async remove(): Promise<void> {
     const q = this.q(); if (!q) return;

@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, effect, inject, input, signal, untracked } from '@angular/core';
+import { createLatest } from '../../core/util/latest';
 import { Router, RouterLink } from '@angular/router';
 import { QuestionSummary, ReviewBucket, ReviewOverview } from '../../core/models';
 import { ApiService } from '../../core/services/api.service';
@@ -24,7 +25,7 @@ import { SkeletonComponent } from '../../shared/ui/skeleton.component';
         </div>
       }
       <div class="mt">
-        @if (loading()) { <app-skeleton kind="card" [count]="4" /> }
+        @if (loading()) { <app-skeleton kind="list" [count]="6" /> }
         @else if (!items().length) { <app-empty-state icon="check" title="Nothing in this queue" hint="Rate questions in interview mode and they will show up here when they are due." /> }
         @else { <app-question-list [items]="items()" [offset]="(page() - 1) * pageSize" /> }
       </div>
@@ -41,6 +42,7 @@ export class ReviewComponent {
   readonly items = signal<QuestionSummary[]>([]);
   readonly page = signal(1);
   readonly total = signal(0);
+  private latestQueue = createLatest();
   readonly loading = signal(true);
   readonly pageSize = 25;
   readonly buckets: { label: string; value: ReviewBucket }[] = [
@@ -60,7 +62,7 @@ export class ReviewComponent {
 
   private load(): void {
     this.loading.set(true);
-    this.api.reviewQueue(this.current(), this.page(), this.pageSize).subscribe({
+    this.latestQueue(this.api.reviewQueue(this.current(), this.page(), this.pageSize), {
       next: p => { this.items.set(p.items); this.total.set(p.totalCount); this.loading.set(false); },
       error: () => this.loading.set(false)
     });

@@ -6,6 +6,7 @@ import { Router, RouterLink } from '@angular/router';
 import { SectionDetail } from '../../core/models';
 import { ApiService } from '../../core/services/api.service';
 import { ProgressBarComponent } from '../../shared/components/ui.components';
+import { createLatest } from '../../core/util/latest';
 import { SkeletonComponent } from '../../shared/ui/skeleton.component';
 import { ErrorStateComponent } from '../../shared/ui/error-state.component';
 
@@ -40,7 +41,7 @@ import { ErrorStateComponent } from '../../shared/ui/error-state.component';
           }
         </div>
       } @else if (failed()) { <app-error-state title="Section not available" hint="It may have been deleted, or the request failed." (retry)="load()" /> }
-      @else { <app-skeleton kind="card" [count]="3" /> }
+      @else { <app-skeleton kind="grid" [count]="4" /> }
     </div>`,
   styles: [`.topics { display: grid; gap: 10px; } .topic h3 { margin: 0; } .small { font-size: 13px; margin: 6px 0 10px; } .mono { font-family: var(--mono); font-size: 13px; }`]
 })
@@ -51,9 +52,10 @@ export class SectionDetailComponent {
   readonly id = input.required<string>();
   readonly data = signal<SectionDetail | null>(null);
   readonly failed = signal(false);
+  private latestSection = createLatest();
   constructor() { effect(() => { this.id(); this.load(); }); }
   load(): void {
     this.failed.set(false); this.data.set(null);
-    this.api.section(Number(this.id())).subscribe({ next: d => this.data.set(d), error: () => this.failed.set(true) });
+    this.latestSection(this.api.section(Number(this.id())), { next: d => this.data.set(d), error: () => this.failed.set(true) });
   }
 }

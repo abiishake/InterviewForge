@@ -1,16 +1,17 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, viewChildren } from '@angular/core';
 import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { ApiError, DIFFICULTIES, Difficulty, Section, Topic } from '../../core/models';
 import { ApiService } from '../../core/services/api.service';
 import { ToastService } from '../../core/services/toast.service';
 import { MarkdownComponent } from '../../shared/components/markdown.component';
+import { FieldValidationDirective, validateForm } from '../../shared/ui/field-validation.directive';
 
 const URL_PATTERN = /^https?:\/\/[^\s]+$/i;
 
 @Component({
   selector: 'app-question-form',
-  imports: [ReactiveFormsModule, RouterLink, MarkdownComponent],
+  imports: [ReactiveFormsModule, RouterLink, MarkdownComponent, FieldValidationDirective],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="page">
@@ -38,8 +39,7 @@ const URL_PATTERN = /^https?:\/\/[^\s]+$/i;
               @if (form.value.topicId === 'new' || form.value.sectionId === 'new') { <input class="mt-s" type="text" formControlName="newTopicName" placeholder="e.g. Company A" /> }
               @if (fieldError('section') || fieldError('newTopicName') || fieldError('topicId')) { <div class="field-error">{{ fieldError('section') || fieldError('newTopicName') || fieldError('topicId') }}</div> }
             </div>
-            <div class="field"><label for="q">Question</label><textarea id="q" rows="3" formControlName="text" class="plain"></textarea>
-              @if (fieldError('text')) { <div class="field-error">{{ fieldError('text') }}</div> }</div>
+            <div class="field"><label for="q">Question</label><textarea id="q" rows="3" appField="Question" [serverError]="errors()['text']?.[0]" formControlName="text" class="plain"></textarea></div>
             <div class="field"><label for="diff">Difficulty</label>
               <select id="diff" formControlName="difficulty">@for (d of difficulties; track d) { <option [value]="d">{{ d }}</option> }</select></div>
             <div class="field"><label for="tags">Tags (space or comma separated)</label><input id="tags" type="text" formControlName="tags" placeholder="#EFCore #Database" /></div>
@@ -63,8 +63,7 @@ const URL_PATTERN = /^https?:\/\/[^\s]+$/i;
               <div class="tabs small"><button type="button" [class.active]="!preview()" (click)="preview.set(false)">Write</button>
                 <button type="button" [class.active]="preview()" (click)="preview.set(true)">Preview</button></div></div>
             @if (preview()) { <div class="preview"><app-markdown [source]="form.value.answer" /></div> }
-            @else { <textarea id="a" rows="22" formControlName="answer" placeholder="Supports **bold**, lists, tables, \`\`\`csharp code blocks\`\`\` and [links](https://learn.microsoft.com). Bare URLs become links."></textarea> }
-            @if (fieldError('answer')) { <div class="field-error">{{ fieldError('answer') }}</div> }
+            @else { <textarea id="a" rows="22" appField="Answer" [serverError]="errors()['answer']?.[0]" formControlName="answer" placeholder="Supports **bold**, lists, tables, \`\`\`csharp code blocks\`\`\` and [links](https://learn.microsoft.com). Bare URLs become links."></textarea> }
           </div>
         </div>
         <div class="row mt">
@@ -157,9 +156,11 @@ export class QuestionFormComponent {
     return this.errors()[key]?.[0] ?? null;
   }
 
+  private fields = viewChildren(FieldValidationDirective);
+
   save(): void {
-    this.form.markAllAsTouched();
-    if (this.form.invalid) return;
+    if (this.form.controls.answer.invalid) this.preview.set(false); // the answer box must be visible to show its message
+    if (!validateForm(this.fields(), this.form)) return;
     const v = this.form.getRawValue();
     const newTopic = v.topicId === 'new' || v.sectionId === 'new';
     const body = {

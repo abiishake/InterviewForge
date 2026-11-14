@@ -6,6 +6,7 @@ import { RouterLink } from '@angular/router';
 import { Plan, PlanDayDetail, PlanItem } from '../../core/models';
 import { ApiService } from '../../core/services/api.service';
 import { ToastService } from '../../core/services/toast.service';
+import { createLatest } from '../../core/util/latest';
 import { SkeletonComponent } from '../../shared/ui/skeleton.component';
 import { ErrorStateComponent } from '../../shared/ui/error-state.component';
 import { DifficultyBadgeComponent, ProgressBarComponent, StatusBadgeComponent } from '../../shared/components/ui.components';
@@ -40,7 +41,7 @@ import { DifficultyBadgeComponent, ProgressBarComponent, StatusBadgeComponent } 
               @for (i of itemsFor(g.topicId); track i.id) {
                 <li class="item">
                   <a [routerLink]="['/questions', i.questionId]" [queryParams]="{ plan: planIdNum(), day: dayNum() }">
-                    <span [class]="'status-dot ' + i.status"></span>
+                    <span [class]="'status-dot ' + i.status" aria-hidden="true"></span>
                     <span class="qtext">{{ i.questionText }}</span>
                     <app-difficulty [value]="i.difficulty" />
                     <app-status [value]="i.status" />
@@ -54,7 +55,7 @@ import { DifficultyBadgeComponent, ProgressBarComponent, StatusBadgeComponent } 
           </div>
         } @empty { <div class="empty mt">No questions scheduled for this day. Use it to catch up or review.</div> }
       } @else if (failed()) { <app-error-state title="Day not available" hint="This day could not be loaded." (retry)="load()" /> }
-      @else { <app-skeleton kind="card" [count]="3" /> }
+      @else { <app-skeleton kind="list" [count]="6" /> }
     </div>`,
   styles: [`
     .small { font-size: 13px; }
@@ -82,12 +83,14 @@ export class PlanDayComponent {
   }
 
   readonly failed = signal(false);
+  private latestPlan = createLatest();
+  private latestDay = createLatest();
 
   load(): void {
     const id = this.planIdNum(), day = this.dayNum();
     this.failed.set(false); this.detail.set(null);
-    this.api.plan(id).subscribe({ next: p => this.plan.set(p), error: () => this.failed.set(true) });
-    this.api.planDay(id, day).subscribe({ next: d => this.detail.set(d), error: () => this.failed.set(true) });
+    this.latestPlan(this.api.plan(id), { next: p => this.plan.set(p), error: () => this.failed.set(true) });
+    this.latestDay(this.api.planDay(id, day), { next: d => this.detail.set(d), error: () => this.failed.set(true) });
   }
 
   itemsFor(topicId: number): PlanItem[] { return this.detail()?.items.filter(i => i.topicId === topicId) ?? []; }

@@ -2,6 +2,7 @@ import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/
 import { ApplicationConfig, provideBrowserGlobalErrorListeners, provideZonelessChangeDetection } from '@angular/core';
 import { PreloadAllModules, provideRouter, withComponentInputBinding, withInMemoryScrolling, withPreloading, withViewTransitions } from '@angular/router';
 import { routes } from './app.routes';
+import { cacheInvalidationInterceptor } from './core/interceptors/cache-invalidation.interceptor';
 import { errorInterceptor } from './core/interceptors/error.interceptor';
 
 export const appConfig: ApplicationConfig = {
@@ -9,6 +10,6 @@ export const appConfig: ApplicationConfig = {
     provideBrowserGlobalErrorListeners(),
     provideZonelessChangeDetection(),
     provideRouter(routes, withComponentInputBinding(), withInMemoryScrolling({ scrollPositionRestoration: 'top' }), withPreloading(PreloadAllModules), withViewTransitions()),
-    provideHttpClient(withFetch(), withInterceptors([errorInterceptor]))
+    provideHttpClient(withFetch(), withInterceptors([errorInterceptor, cacheInvalidationInterceptor]))
   ]
 };

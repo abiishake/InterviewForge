@@ -5,7 +5,7 @@ import { SkeletonComponent } from '../../shared/ui/skeleton.component';
 import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
 import { ErrorStateComponent } from '../../shared/ui/error-state.component';
 import { AlgorithmSummary } from '../../core/models';
-import { ApiService } from '../../core/services/api.service';
+import { ReferenceDataService } from '../../core/services/reference-data.service';
 
 @Component({
   selector: 'app-algorithms',
@@ -21,7 +21,7 @@ import { ApiService } from '../../core/services/api.service';
         @for (c of categories(); track c) { <button type="button" [class.active]="category() === c" [attr.aria-pressed]="category() === c" (click)="category.set(c)">{{ c }}</button> }
       </div>
       @if (state() === 'error') { <app-error-state class="mt" (retry)="load()" /> }
-      @else if (state() === 'loading') { <app-skeleton kind="card" [count]="3" /> }
+      @else if (state() === 'loading') { <app-skeleton kind="grid" [count]="6" /> }
       @else {
       @for (g of groups(); track g.category) {
         <h2 class="mt">{{ g.category }}</h2>
@@ -36,8 +36,8 @@ import { ApiService } from '../../core/services/api.service';
     </div>`
 })
 export class AlgorithmsComponent {
-  private api = inject(ApiService);
-  readonly items = signal<AlgorithmSummary[]>([]);
+  private ref = inject(ReferenceDataService);
+  readonly items = computed<AlgorithmSummary[]>(() => this.ref.algorithms() ?? []);
   readonly query = signal('');
   readonly category = signal('');
   readonly categories = computed(() => [...new Set(this.items().map(a => a.category))]);
@@ -47,10 +47,10 @@ export class AlgorithmsComponent {
     for (const a of this.items().filter(x => (!this.category() || x.category === this.category()) && (!q || x.name.toLowerCase().includes(q)))) m.set(a.category, [...(m.get(a.category) ?? []), a]);
     return [...m.entries()].map(([category, items]) => ({ category, items }));
   });
-  readonly state = signal<'loading' | 'ready' | 'error'>('loading');
+  readonly state = signal<'loading' | 'ready' | 'error'>(this.ref.algorithms() ? 'ready' : 'loading');
   constructor() { this.load(); }
   load(): void {
-    this.state.set('loading');
-    this.api.algorithms().subscribe({ next: a => { this.items.set(a); this.state.set('ready'); }, error: () => this.state.set('error') });
+    if (!this.ref.algorithms()) this.state.set('loading');
+    this.ref.refreshAlgorithms().subscribe({ next: () => this.state.set('ready'), error: () => { if (!this.ref.algorithms()) this.state.set('error'); } });
   }
 }
