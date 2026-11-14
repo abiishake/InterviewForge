@@ -25,7 +25,7 @@ import { SkeletonComponent } from '../../shared/ui/skeleton.component';
         </div>
       }
       <div class="mt">
-        @if (loading()) { <app-skeleton kind="card" [count]="4" /> }
+        @if (loading()) { <app-skeleton kind="list" [count]="6" /> }
         @else if (!items().length) { <app-empty-state icon="check" title="Nothing in this queue" hint="Rate questions in interview mode and they will show up here when they are due." /> }
         @else { <app-question-list [items]="items()" [offset]="(page() - 1) * pageSize" /> }
       </div>

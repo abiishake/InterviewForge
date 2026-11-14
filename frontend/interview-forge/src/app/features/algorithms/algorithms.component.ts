@@ -21,7 +21,7 @@ import { ReferenceDataService } from '../../core/services/reference-data.service
         @for (c of categories(); track c) { <button type="button" [class.active]="category() === c" [attr.aria-pressed]="category() === c" (click)="category.set(c)">{{ c }}</button> }
       </div>
       @if (state() === 'error') { <app-error-state class="mt" (retry)="load()" /> }
-      @else if (state() === 'loading') { <app-skeleton kind="card" [count]="3" /> }
+      @else if (state() === 'loading') { <app-skeleton kind="grid" [count]="6" /> }
       @else {
       @for (g of groups(); track g.category) {
         <h2 class="mt">{{ g.category }}</h2>

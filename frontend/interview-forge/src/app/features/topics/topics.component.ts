@@ -19,7 +19,7 @@ import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
         <label class="checkbox"><input type="checkbox" [ngModel]="withQuestions()" (ngModelChange)="withQuestions.set($event)" /> Only topics with questions</label>
       </div>
       @if (state() === 'error') { <app-error-state class="mt" (retry)="load()" /> }
-      @else if (state() === 'loading') { <app-skeleton kind="text" [count]="6" /> }
+      @else if (state() === 'loading') { <app-skeleton kind="list" [count]="8" /> }
       @else {
       @for (g of groups(); track g.section) {
         <h2 class="mt">{{ g.section }}</h2>

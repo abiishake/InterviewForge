@@ -50,7 +50,7 @@ import { SkeletonComponent } from '../../shared/ui/skeleton.component';
         <h3 class="dim mt-lg" role="status">{{ r.questions.totalCount }} question{{ r.questions.totalCount === 1 ? '' : 's' }}</h3>
         <app-question-list [items]="r.questions.items" [offset]="(r.questions.page - 1) * r.questions.pageSize" emptyText="No questions match. Try fewer words." />
         <app-pagination [page]="r.questions.page" [pageSize]="r.questions.pageSize" [total]="r.questions.totalCount" (pageChange)="page($event)" />
-      } @else if (loading()) { <app-skeleton [count]="5" /> }
+      } @else if (loading()) { <app-skeleton kind="list" [count]="6" /> }
     </div>`,
   styles: [`
     .search-box { display: flex; gap: 8px; margin-top: 14px; }

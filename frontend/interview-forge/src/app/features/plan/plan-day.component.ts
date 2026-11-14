@@ -55,7 +55,7 @@ import { DifficultyBadgeComponent, ProgressBarComponent, StatusBadgeComponent } 
           </div>
         } @empty { <div class="empty mt">No questions scheduled for this day. Use it to catch up or review.</div> }
       } @else if (failed()) { <app-error-state title="Day not available" hint="This day could not be loaded." (retry)="load()" /> }
-      @else { <app-skeleton kind="card" [count]="3" /> }
+      @else { <app-skeleton kind="list" [count]="6" /> }
     </div>`,
   styles: [`
     .small { font-size: 13px; }

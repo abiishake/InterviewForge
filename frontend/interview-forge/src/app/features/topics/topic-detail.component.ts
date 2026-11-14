@@ -41,12 +41,12 @@ import { SkeletonComponent } from '../../shared/ui/skeleton.component';
           @for (f of filters; track f.value) { <button type="button" [class.active]="filter() === f.value" [attr.aria-pressed]="filter() === f.value" (click)="setFilter(f.value)">{{ f.label }}</button> }
         </div>
         <div class="mt">
-          @if (loadingQs()) { <app-skeleton kind="card" [count]="4" /> }
+          @if (loadingQs()) { <app-skeleton kind="list" [count]="6" /> }
           @else { <app-question-list [items]="questions()" [showTopic]="false" [contextTopicId]="t.id" [offset]="(page() - 1) * pageSize" emptyText="No questions match this filter." /> }
         </div>
         <app-pagination [page]="page()" [pageSize]="pageSize" [total]="total()" (pageChange)="goPage($event)" />
         <a class="fab" routerLink="/questions/new" [queryParams]="{ topic: t.id }" aria-label="Add question">+</a>
-      } @else { <app-skeleton [count]="5" /> }
+      } @else { <app-skeleton kind="list" [count]="8" /> }
     </div>`,
   styles: [`.mono { font-family: var(--mono); } summary { cursor: pointer; }`]
 })

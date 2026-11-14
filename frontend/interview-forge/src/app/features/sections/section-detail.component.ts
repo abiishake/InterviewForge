@@ -41,7 +41,7 @@ import { ErrorStateComponent } from '../../shared/ui/error-state.component';
           }
         </div>
       } @else if (failed()) { <app-error-state title="Section not available" hint="It may have been deleted, or the request failed." (retry)="load()" /> }
-      @else { <app-skeleton kind="card" [count]="3" /> }
+      @else { <app-skeleton kind="grid" [count]="4" /> }
     </div>`,
   styles: [`.topics { display: grid; gap: 10px; } .topic h3 { margin: 0; } .small { font-size: 13px; margin: 6px 0 10px; } .mono { font-family: var(--mono); font-size: 13px; }`]
 })

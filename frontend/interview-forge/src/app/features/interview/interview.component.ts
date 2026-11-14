@@ -57,7 +57,7 @@ const LABELS: Record<RecallRating, string> = { Easy: 'Easy', Okay: 'Okay', Hard:
           }
         </div>
       } @else if (loading() || fetching()) {
-        <app-skeleton [count]="6" />
+        <app-skeleton kind="detail" />
       } @else {
         <div class="card done">
           <h2>Session complete</h2>

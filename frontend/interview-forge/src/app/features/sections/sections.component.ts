@@ -17,7 +17,7 @@ import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
         <p>Derived from the technology skill matrix, plus your own sections.</p></div>
         <a class="btn" routerLink="/mine">+ New section</a></div>
       @if (state() === 'error') { <app-error-state (retry)="load()" /> }
-      @else if (state() === 'loading') { <app-skeleton kind="card" [count]="3" /> }
+      @else if (state() === 'loading') { <app-skeleton kind="grid" [count]="6" /> }
       @else {
       <div class="grid grid-3">
         @for (s of sections(); track s.id) {

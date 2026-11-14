@@ -118,7 +118,7 @@ type NoteState = 'idle' | 'dirty' | 'saving' | 'saved';
         </div>
       } @else if (notFound()) {
         <app-empty-state icon="alert" title="Question not found" hint="It may have been deleted."><a class="btn" routerLink="/sections">Browse the library</a></app-empty-state>
-      } @else { <app-skeleton [count]="6" /> }
+      } @else { <app-skeleton kind="detail" /> }
     </div>`,
   styles: [`
     .page { max-width: 1200px; }
