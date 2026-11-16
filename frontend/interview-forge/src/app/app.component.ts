@@ -20,7 +20,7 @@ const GROUPS: NavGroup[] = [
   { title: 'Practice', icon: 'play', links: [{ label: 'Interview mode', path: '/interview' }, { label: 'Review queue', path: '/review' }] },
   { title: 'Library', icon: 'book', links: [
     { label: 'Sections', path: '/sections' }, { label: 'Topics', path: '/topics' }, { label: 'Search', path: '/search' },
-    { label: 'Algorithms', path: '/algorithms' }, { label: 'My content', path: '/mine' }, { label: 'Add question', path: '/questions/new' }] },
+    { label: 'Algorithms', path: '/algorithms' }, { label: 'Coding Questions', path: '/coding-questions' }, { label: 'My content', path: '/mine' }, { label: 'Add question', path: '/questions/new' }] },
   { title: 'Me', icon: 'user', links: [{ label: 'Notes', path: '/notes' }, { label: 'My feedback', path: '/feedback' }, { label: 'Account', path: '/account' }] }
 ];
 
