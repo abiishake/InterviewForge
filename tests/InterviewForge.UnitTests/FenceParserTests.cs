@@ -147,7 +147,7 @@ public class SplitContentTests
     public void New_bank_topics_map_to_existing_matrix_sections_and_topics()
     {
         var (matrix, overrides) = LoadMatrixAndOverrides();
-        foreach (var slug in new[] { "javascript", "typescript", "angular", "react" })
+        foreach (var slug in new[] { "javascript", "typescript", "angular", "react", "coding-questions" })
             Assert.Contains(matrix, s => s.Slug == slug);
 
         var data = ParserTests.FindDataDir();
@@ -169,7 +169,7 @@ public class SplitContentTests
     {
         var (matrix, overrides) = LoadMatrixAndOverrides();
         var legacy = QuestionBankParser.Parse(File.ReadAllText(Path.Combine(ParserTests.FindDataDir(), "dotnet_10_year_interview_question_bank.md")));
-        var newSlugs = new HashSet<string> { "javascript", "typescript", "angular", "react" };
+        var newSlugs = new HashSet<string> { "javascript", "typescript", "angular", "react", "coding-questions" };
         foreach (var t in legacy)
             Assert.DoesNotContain(TopicClassifier.Classify(t, matrix, overrides).SectionSlug, newSlugs);
     }

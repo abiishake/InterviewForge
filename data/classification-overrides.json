@@ -34,5 +34,13 @@
   "react-data": "react/data-fetching-and-forms",
   "react-next": "react/routing-ssr-and-server-components",
   "react-testing": "react/testing-and-accessibility",
+  "coding-strings": "coding-questions/string-manipulation",
+  "coding-arrays": "coding-questions/array-scans-and-counting",
+  "coding-greedy": "coding-questions/greedy-and-heap-problems",
+  "coding-hashing": "coding-questions/hash-maps-and-simulation",
+  "coding-windows": "coding-questions/intervals-and-range-sweeps",
+  "coding-trees": "coding-questions/binary-search-trees-and-json-filtering",
+  "coding-math": "coding-questions/math-and-circular-movement",
+  "lld-coding": "software-design",
   "modern-dotnet": "backend-dotnet"
 }
