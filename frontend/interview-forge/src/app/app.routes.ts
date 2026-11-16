@@ -26,7 +26,6 @@ export const routes: Routes = [
   { path: 'search', loadComponent: () => import('./features/search/search.component').then(m => m.SearchComponent), title: 'Search · InterviewForge' },
   { path: 'algorithms', loadComponent: () => import('./features/algorithms/algorithms.component').then(m => m.AlgorithmsComponent), title: 'Algorithms · InterviewForge' },
   { path: 'algorithms/:slug', loadComponent: () => import('./features/algorithms/algorithm-detail.component').then(m => m.AlgorithmDetailComponent), title: 'Algorithm · InterviewForge' },
-  { path: 'coding-questions', loadComponent: () => import('./features/coding-questions/coding-questions.component').then(m => m.CodingQuestionsComponent), title: 'Coding Questions · InterviewForge' },
   { path: 'review', loadComponent: () => import('./features/review/review.component').then(m => m.ReviewComponent), title: 'Review · InterviewForge' },
   { path: 'interview', loadComponent: () => import('./features/interview/interview.component').then(m => m.InterviewComponent), title: 'Interview mode · InterviewForge' },
   { path: 'notes', loadComponent: () => import('./features/notes/notes.component').then(m => m.NotesComponent), title: 'My notes · InterviewForge' },

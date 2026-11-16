@@ -2302,3 +2302,65 @@ Each major skill area is covered by one or more interview topics
 -   Mock Service Worker for API mocks
 -   Accessible components, focus management, ARIA
 -   Playwright end-to-end tests
+
+------------------------------------------------------------------------
+
+# 37. Coding Questions
+
+## Resume technologies
+
+-   C# implementations of interview coding problems
+
+## 10-year target
+
+### String Manipulation --- Core
+
+-   Minimum Replacements to Eliminate Adjacent Equal Characters
+-   Minimum Replacements to Avoid Equal Adjacent Characters
+-   Minimum Deletions to Eliminate Adjacent Equal Characters
+-   Reverse Last Two Characters with a Space
+-   Group Words by Character Frequency
+-   Return the Last Lexicographical Substring
+-   Find the Largest Subset of a String
+-   Get Final String
+
+### Array Scans and Counting --- Core
+
+-   Count strictly decreasing-by-1 subarrays of length at least 2
+-   Get Minimum Increment
+-   Get Minimum Operations
+-   Minimum Hits Needed
+-   Maximum Increment to Make Array Ascending
+-   Find Length of Longest Bitonic Subarray
+-   Merge 2 Arrays
+-   Find Missing Integer
+-   Find Non-Repeated Elements
+-   Get Query Answers
+
+### Greedy and Heap Problems --- Core
+
+-   Maximum Revenue from Renting Highest-Stock VMs
+-   Maximum Revenue from VM Rentals
+-   Maximize Integer with Swap
+-   Card Packets
+
+### Hash Maps and Simulation --- Strong
+
+-   Design Authentication Manager
+-   Find Common Keys in Product Recommendations
+-   Compare Products from Three Separate Lists
+
+### Intervals and Range Sweeps --- Strong
+
+-   Minimum Number of Meeting Rooms (Intervals as List<List<Integer>>)
+-   Optimize Streaming Platform Sessions
+
+### Binary Search Trees and JSON Filtering --- Strong
+
+-   Search Values in a Binary Search Tree
+-   Retrieve and Filter Elite Clubs from Football Teams API
+
+### Math and Circular Movement --- Useful
+
+-   Count numbers of the form 3^x * 5^y within a range
+-   toolchanger (from your screenshot)
