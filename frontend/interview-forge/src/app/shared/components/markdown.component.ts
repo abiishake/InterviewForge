@@ -3,7 +3,61 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import DOMPurify from 'dompurify';
 import { Marked } from 'marked';
 
+import hljs from 'highlight.js/lib/core';
+import csharp from 'highlight.js/lib/languages/csharp';
+import javascript from 'highlight.js/lib/languages/javascript';
+import typescript from 'highlight.js/lib/languages/typescript';
+import sql from 'highlight.js/lib/languages/sql';
+import xml from 'highlight.js/lib/languages/xml';
+import css from 'highlight.js/lib/languages/css';
+import json from 'highlight.js/lib/languages/json';
+import bash from 'highlight.js/lib/languages/bash';
+import powershell from 'highlight.js/lib/languages/powershell';
+import python from 'highlight.js/lib/languages/python';
+import java from 'highlight.js/lib/languages/java';
+import cpp from 'highlight.js/lib/languages/cpp';
+import yaml from 'highlight.js/lib/languages/yaml';
+import markdownLang from 'highlight.js/lib/languages/markdown';
+
+const LANGS: Record<string, any> = { csharp, javascript, typescript, sql, xml, css, json, bash, powershell, python, java, cpp, yaml, markdown: markdownLang };
+for (const [name, def] of Object.entries(LANGS)) hljs.registerLanguage(name, def);
+hljs.registerAliases(['cs', 'c#', 'dotnet'], { languageName: 'csharp' });
+hljs.registerAliases(['js', 'jsx'], { languageName: 'javascript' });
+hljs.registerAliases(['ts', 'tsx'], { languageName: 'typescript' });
+hljs.registerAliases(['html', 'xhtml', 'cshtml', 'razor', 'svg'], { languageName: 'xml' });
+hljs.registerAliases(['sh', 'shell', 'zsh'], { languageName: 'bash' });
+hljs.registerAliases(['ps', 'ps1'], { languageName: 'powershell' });
+hljs.registerAliases(['tsql', 'mysql', 'pgsql', 'postgres'], { languageName: 'sql' });
+hljs.registerAliases(['yml'], { languageName: 'yaml' });
+hljs.registerAliases(['c', 'c++', 'h', 'hpp'], { languageName: 'cpp' });
+hljs.registerAliases(['md'], { languageName: 'markdown' });
+
 const marked = new Marked({ gfm: true, breaks: false });
+
+const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+// Syntax-highlight fenced code. Output is still passed through DOMPurify (only <span class="hljs-*"> is added).
+marked.use({
+  renderer: {
+    code({ text, lang }: { text: string; lang?: string }) {
+      const language = (lang ?? '').trim().split(/\s+/)[0].toLowerCase();
+      let body: string;
+      let cls = '';
+      try {
+        if (language && hljs.getLanguage(language)) {
+          body = hljs.highlight(text, { language, ignoreIllegals: true }).value;
+          cls = ` class="hljs language-${escapeHtml(language)}"`;
+        } else {
+          body = hljs.highlightAuto(text).value;
+          cls = ' class="hljs"';
+        }
+      } catch {
+        body = escapeHtml(text);
+      }
+      return `<pre><code${cls}>${body}\n</code></pre>\n`;
+    }
+  }
+});
 
 // Only http(s), mailto and in-app relative/anchor links survive. javascript:, data:, vbscript: etc. are stripped.
 const SAFE_URI = /^(?:https?:|mailto:|\/(?!\/)|#)/i;

@@ -189,6 +189,36 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .code-wrap pre { margin: 0; }
 .copy-btn { position: absolute; top: 6px; right: 6px; padding: 3px 9px; font: 12px var(--font); border: 1px solid var(--border-strong); border-radius: 4px; background: var(--bg-elev); color: var(--text-muted); cursor: pointer; }
 .copy-btn:hover { color: var(--text); }
+/* Syntax highlighting — Visual Studio light / Dark+ palettes */
+:root {
+  --tok-keyword: #0000ff; --tok-control: #af00db; --tok-type: #2b91af; --tok-string: #a31515;
+  --tok-number: #098658; --tok-comment: #008000; --tok-func: #795e26; --tok-attr: #e50000;
+  --tok-var: #001080; --tok-meta: #808080;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --tok-keyword: #569cd6; --tok-control: #c586c0; --tok-type: #4ec9b0; --tok-string: #ce9178;
+    --tok-number: #b5cea8; --tok-comment: #6a9955; --tok-func: #dcdcaa; --tok-attr: #9cdcfe;
+    --tok-var: #9cdcfe; --tok-meta: #808080;
+  }
+}
+:root[data-theme="dark"] {
+  --tok-keyword: #569cd6; --tok-control: #c586c0; --tok-type: #4ec9b0; --tok-string: #ce9178;
+  --tok-number: #b5cea8; --tok-comment: #6a9955; --tok-func: #dcdcaa; --tok-attr: #9cdcfe;
+  --tok-var: #9cdcfe; --tok-meta: #808080;
+}
+.md .hljs-keyword, .md .hljs-literal, .md .hljs-built_in, .md .hljs-selector-tag, .md .hljs-doctag { color: var(--tok-keyword); }
+.md .hljs-type, .md .hljs-class .hljs-title, .md .hljs-title.class_, .md .hljs-tag, .md .hljs-name { color: var(--tok-type); }
+.md .hljs-string, .md .hljs-regexp, .md .hljs-template-variable, .md .hljs-meta .hljs-string { color: var(--tok-string); }
+.md .hljs-number, .md .hljs-symbol, .md .hljs-bullet { color: var(--tok-number); }
+.md .hljs-comment, .md .hljs-quote { color: var(--tok-comment); font-style: italic; }
+.md .hljs-title, .md .hljs-title.function_, .md .hljs-section { color: var(--tok-func); }
+.md .hljs-attr, .md .hljs-attribute, .md .hljs-property, .md .hljs-variable, .md .hljs-params, .md .hljs-selector-class, .md .hljs-selector-id { color: var(--tok-attr); }
+.md .hljs-meta, .md .hljs-meta .hljs-keyword { color: var(--tok-meta); }
+.md .hljs-addition { color: var(--ok); }
+.md .hljs-deletion { color: var(--danger); }
+.md .hljs-emphasis { font-style: italic; }
+.md .hljs-strong { font-weight: 700; }
 .md pre code { background: none; border: none; padding: 0; font-size: 13px; line-height: 1.55; }
 .md table { border-collapse: collapse; width: 100%; font-size: 14px; }
 .md th, .md td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; }
