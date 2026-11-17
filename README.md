@@ -27,7 +27,7 @@ docker compose build          # builds Angular + .NET, runs all tests
 docker compose up -d
 ```
 
-Open **http://SERVER_IP:8888**. On first start the app creates `./data/interviewforge.db`, applies migrations and imports the Markdown seed files (≈112 questions, ~20 sections, 49 algorithms).
+Open **http://SERVER_IP:8888**. On first start the app creates `./data/interviewforge.db`, applies migrations and imports the Markdown seed files (≈355 questions with code examples, 24 sections incl. JavaScript, TypeScript, Angular and React, 49 algorithms).
 
 If a firewall is active: `sudo ufw allow 8888/tcp`.
 
@@ -127,6 +127,8 @@ Seed files live in `data/` (also baked into the image under `/app/seed`):
 |---|---|
 | `dotnet_10_year_technology_skill_matrix.md` | Sections, topics, priorities and topic scope |
 | `dotnet_10_year_interview_question_bank.md` | Questions, answers, difficulty, follow-ups |
+| `question-bank/*.md` | Additional question banks, one file per subject (JavaScript, TypeScript, Angular, React) |
+| `examples/*.md` | Real-world code examples appended to existing questions, keyed by `question_id` |
 | `algorithms_csharp.md` | Algorithms catalogue |
 | `classification-overrides.json` | Optional manual corrections of question-topic → section mapping |
 
@@ -134,7 +136,9 @@ The importer runs on startup (`Import__RunOnStartup=Always|IfEmpty|Never`) and v
 
 To change seed content on the server, edit the files in `./data` (the importer prefers `/data` when it contains the question bank, otherwise it uses the baked-in copies) and run the import again.
 
-The expected Markdown formats and the classification rules are documented in **[docs/IMPORT_FORMAT.md](docs/IMPORT_FORMAT.md)**.
+The expected Markdown formats and the classification rules are documented in **[docs/IMPORT_FORMAT.md](docs/IMPORT_FORMAT.md)**. Why the knowledge base stays Markdown (split per subject) with SQLite as the runtime store is explained in **[docs/CONTENT_STORAGE.md](docs/CONTENT_STORAGE.md)**. Validate content before committing with `node scripts/validate-content.mjs`.
+
+> If you mount your own copies of the seed files into `/data`, also copy `data/question-bank/` and `data/examples/` there; the importer reads the folders from the same directory it finds the legacy question bank in.
 
 ---
 

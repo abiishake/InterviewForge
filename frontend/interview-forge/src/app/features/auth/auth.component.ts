@@ -1,12 +1,13 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal, viewChildren } from '@angular/core';
+import { FormsModule, NgForm } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { ApiError } from '../../core/models';
+import { FieldValidationDirective, validateForm } from '../../shared/ui/field-validation.directive';
 
 @Component({
   selector: 'app-auth',
-  imports: [FormsModule],
+  imports: [FormsModule, FieldValidationDirective],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="auth-wrap">
@@ -17,18 +18,18 @@ import { ApiError } from '../../core/models';
         @if (signup() && !registrationOpen()) {
           <p class="notice" role="status">Public sign-up is closed. Ask an administrator to create an account for you.</p>
         } @else {
-        <form (ngSubmit)="submit()" class="stack mt">
+        <form #f="ngForm" (ngSubmit)="submit(f)" class="stack mt">
           <label>Username
-            <input name="username" [(ngModel)]="username" required minlength="3" maxlength="32" pattern="[A-Za-z0-9._-]+" autocomplete="username" autocapitalize="none" [attr.aria-describedby]="signup() ? 'u-hint' : null">
+            <input appField="Username" [hintId]="signup() ? 'u-hint' : null" patternMessage="Use letters, digits, dot, dash or underscore." name="username" [(ngModel)]="username" required [minlength]="signup() ? 3 : 0" maxlength="32" [pattern]="signup() ? '[A-Za-z0-9._-]+' : ''" autocomplete="username" autocapitalize="none">
           </label>
           @if (signup()) {
             <p id="u-hint" class="hint">3-32 characters: letters, digits, dot, dash or underscore.</p>
-            <label>Name<input name="name" [(ngModel)]="name" required maxlength="80" autocomplete="name"></label>
-            <label>Email<input name="email" type="email" [(ngModel)]="email" required maxlength="254" autocomplete="email"></label>
+            <label>Name<input appField="Name" name="name" [(ngModel)]="name" required maxlength="80" autocomplete="name"></label>
+            <label>Email<input appField="Email" name="email" type="email" [(ngModel)]="email" required maxlength="254" autocomplete="email"></label>
           }
           <label>Password
             <span class="pw">
-              <input name="password" [type]="reveal() ? 'text' : 'password'" [(ngModel)]="password" required [minlength]="signup() ? 12 : 1" maxlength="128" [autocomplete]="signup() ? 'new-password' : 'current-password'" [attr.aria-describedby]="signup() ? 'p-hint' : null">
+              <input appField="Password" [hintId]="signup() ? 'p-hint' : null" name="password" [type]="reveal() ? 'text' : 'password'" [(ngModel)]="password" required [minlength]="signup() ? 12 : 0" maxlength="128" [autocomplete]="signup() ? 'new-password' : 'current-password'">
               <button type="button" class="btn sm" (click)="reveal.set(!reveal())" [attr.aria-pressed]="reveal()">{{ reveal() ? 'Hide' : 'Show' }}</button>
             </span>
           </label>
@@ -45,7 +46,7 @@ import { ApiError } from '../../core/models';
   styles: [`
     .auth-wrap { min-height: 100dvh; display: grid; place-items: center; padding: 24px 16px; }
     .auth-card { width: 100%; max-width: 420px; }
-    .pw { display: flex; gap: 8px; }
+    .pw { display: flex; flex-wrap: wrap; gap: 8px; } .pw input { flex: 1; min-width: 0; }
     .hint { margin: -6px 0 0; font-size: 12px; color: var(--text-muted); }
     .notice { background: var(--info-soft); border: 1px solid var(--info); border-radius: var(--radius-sm); padding: 10px 12px; margin: 12px 0 0; }
   `]
@@ -59,11 +60,13 @@ export class AuthComponent implements OnInit {
   readonly error = signal('');
   readonly reveal = signal(false);
   readonly registrationOpen = signal(true);
+  private fields = viewChildren(FieldValidationDirective);
   username = ''; name = ''; email = ''; password = '';
 
   async ngOnInit(): Promise<void> { this.registrationOpen.set(await this.auth.registrationOpen()); }
 
-  async submit(): Promise<void> {
+  async submit(f: NgForm): Promise<void> {
+    if (!validateForm(this.fields(), f.control)) return;
     this.busy.set(true);
     this.error.set('');
     try {

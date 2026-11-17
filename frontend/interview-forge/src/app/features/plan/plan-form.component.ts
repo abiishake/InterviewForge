@@ -1,13 +1,14 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, viewChildren } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { ApiError, Section } from '../../core/models';
 import { ApiService } from '../../core/services/api.service';
 import { ToastService } from '../../core/services/toast.service';
+import { FieldValidationDirective, validateForm } from '../../shared/ui/field-validation.directive';
 
 @Component({
   selector: 'app-plan-form',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, FieldValidationDirective],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="page narrow">
@@ -16,14 +17,11 @@ import { ToastService } from '../../core/services/toast.service';
       <p class="muted">Questions are distributed in skill-matrix order, keeping topics together. Completed questions are skipped unless you include them.</p>
 
       <form [formGroup]="form" (ngSubmit)="save()" class="card mt">
-        <div class="field"><label for="name">Plan name</label><input id="name" type="text" formControlName="name" />
-          @if (err('name')) { <div class="field-error">{{ err('name') }}</div> }</div>
+        <div class="field"><label for="name">Plan name</label><input id="name" type="text" appField="Plan name" [serverError]="serverErrors()['name']?.[0]" formControlName="name" /></div>
         <div class="grid grid-3">
-          <div class="field"><label for="d">Duration (days)</label><input id="d" type="number" min="1" max="365" formControlName="durationDays" />
-            @if (err('durationDays')) { <div class="field-error">{{ err('durationDays') }}</div> }</div>
-          <div class="field"><label for="q">Questions per day</label><input id="q" type="number" min="1" max="200" formControlName="questionsPerDay" />
-            @if (err('questionsPerDay')) { <div class="field-error">{{ err('questionsPerDay') }}</div> }</div>
-          <div class="field"><label for="m">Study minutes per day (0 = no limit)</label><input id="m" type="number" min="0" max="1440" formControlName="studyMinutesPerDay" /></div>
+          <div class="field"><label for="d">Duration (days)</label><input id="d" type="number" min="1" max="365" appField="Duration" [serverError]="serverErrors()['durationDays']?.[0]" formControlName="durationDays" /></div>
+          <div class="field"><label for="q">Questions per day</label><input id="q" type="number" min="1" max="200" appField="Questions per day" [serverError]="serverErrors()['questionsPerDay']?.[0]" formControlName="questionsPerDay" /></div>
+          <div class="field"><label for="m">Study minutes per day (0 = no limit)</label><input id="m" type="number" min="0" max="1440" appField="Study minutes" formControlName="studyMinutesPerDay" /></div>
         </div>
         @if (!planId()) {
           <div class="field"><label for="s">Start date</label><input id="s" type="date" formControlName="startDate" aria-describedby="s-hint" /><div id="s-hint" class="muted small">Leave empty to start today in your time zone.</div></div>
@@ -40,7 +38,7 @@ import { ToastService } from '../../core/services/toast.service';
         @if (!planId()) { <label class="checkbox mt"><input type="checkbox" formControlName="makeCurrent" /> Make this my current plan</label> }
         <p class="estimate" role="status">{{ estimate() }}</p>
         <div class="row mt">
-          <button class="btn primary" type="submit" [disabled]="form.invalid || saving()">{{ planId() ? 'Save & regenerate from today' : 'Generate plan' }}</button>
+          <button class="btn primary" type="submit" [disabled]="saving()">{{ planId() ? 'Save & regenerate from today' : 'Generate plan' }}</button>
           <a class="btn ghost" routerLink="/plan">Cancel</a>
         </div>
       </form>
@@ -109,13 +107,10 @@ export class PlanFormComponent {
     this.selected.set(s);
   }
 
-  err(field: string): string | null {
-    const c = this.form.get(field);
-    if (c && c.invalid && c.touched) return 'Please enter a valid value.';
-    return this.serverErrors()[field]?.[0] ?? null;
-  }
+  private fields = viewChildren(FieldValidationDirective);
 
   save(): void {
+    if (!validateForm(this.fields(), this.form)) return;
     this.saving.set(true);
     const v = this.form.getRawValue();
     const { makeCurrent, startDate, ...rest } = v;

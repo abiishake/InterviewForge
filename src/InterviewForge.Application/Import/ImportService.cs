@@ -55,10 +55,19 @@ public sealed class ImportService(IAppDbContext db, ImportOptions options, ILogg
         var deleted = await db.DeletedSeeds.ToListAsync(ct);
         bool IsDeleted(string kind, string key) => deleted.Any(d => d.Kind == kind && d.Key == key);
         var matrix = File.Exists(matrixPath) ? SkillMatrixParser.Parse(await File.ReadAllTextAsync(matrixPath, ct)) : Array.Empty<MatrixSection>();
-        var bank = File.Exists(bankPath) ? QuestionBankParser.Parse(await File.ReadAllTextAsync(bankPath, ct)) : Array.Empty<BankTopic>();
+        var bank = new List<BankTopic>();
+        if (File.Exists(bankPath)) bank.AddRange(QuestionBankParser.Parse(await File.ReadAllTextAsync(bankPath, ct)));
+        foreach (var file in EnumerateMarkdown(Path.Combine(dataDirectory, options.QuestionBankDirectory)))
+            bank.AddRange(QuestionBankParser.Parse(await File.ReadAllTextAsync(file, ct)));
+        var examples = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var file in EnumerateMarkdown(Path.Combine(dataDirectory, options.ExamplesDirectory)))
+            foreach (var (id, body) in ExamplesParser.Parse(await File.ReadAllTextAsync(file, ct))) examples[id] = body;
         var algos = File.Exists(algoPath) ? AlgorithmMarkdownParser.Parse(await File.ReadAllTextAsync(algoPath, ct)) : Array.Empty<AlgorithmRecord>();
         if (matrix.Count == 0) report.Warnings.Add($"Skill matrix not found or empty: {matrixPath}");
         if (bank.Count == 0) report.Warnings.Add($"Question bank not found or empty: {bankPath}");
+        var knownQuestionIds = bank.SelectMany(t => t.Questions).Select(q => q.QuestionId).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var orphan in examples.Keys.Where(k => !knownQuestionIds.Contains(k)))
+            report.Warnings.Add($"Example '{orphan}' does not match any question id and was ignored.");
         var overrides = await LoadOverridesAsync(overridesPath, ct);
 
         await using var tx = await db.BeginTransactionAsync(ct);
@@ -136,9 +145,10 @@ public sealed class ImportService(IAppDbContext db, ImportOptions options, ILogg
 
         var position = 0;
         var seenInThisRun = new HashSet<string>();
-        foreach (var (bq, topic, bt) in questionTargets)
+        foreach (var (rawQuestion, topic, bt) in questionTargets)
         {
             position++;
+            var bq = rawQuestion;
             if (IsDeleted("Question", bq.QuestionId)) continue;
             var hash = Text.Hash(bq.Question);
             if (!seenInThisRun.Add(bq.QuestionId) ||
@@ -147,6 +157,10 @@ public sealed class ImportService(IAppDbContext db, ImportOptions options, ILogg
                 report.DuplicatesSkipped++;
                 continue;
             }
+
+            // Real-world code example from the examples overlay, appended to the answer body.
+            if (examples.TryGetValue(bq.QuestionId, out var example))
+                bq = bq with { Answer = $"{bq.Answer}\n\n**Real-world code example**\n\n{example}" };
 
             var difficulty = MarkdownHelpers.ParseDifficulty(bq.DifficultyLabel);
             var followUps = bq.FollowUps.Count == 0 ? null : string.Join('\n', bq.FollowUps.Select(f => "- " + f));
@@ -218,6 +232,12 @@ public sealed class ImportService(IAppDbContext db, ImportOptions options, ILogg
         foreach (var w in report.Warnings) logger.LogWarning("Import warning: {Warning}", w);
         return report;
     }
+
+    /// <summary>Every *.md file below <paramref name="directory"/> in a stable (ordinal) order; empty when it does not exist.</summary>
+    private static IEnumerable<string> EnumerateMarkdown(string directory) =>
+        Directory.Exists(directory)
+            ? Directory.EnumerateFiles(directory, "*.md", SearchOption.AllDirectories).OrderBy(f => f, StringComparer.Ordinal)
+            : Enumerable.Empty<string>();
 
     private Section UpsertSection(Dictionary<string, Section> byKey, string key, string name, string slug, string? description, int order, Priority priority, ImportReport report)
     {

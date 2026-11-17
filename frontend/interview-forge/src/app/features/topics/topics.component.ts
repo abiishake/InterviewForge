@@ -2,12 +2,15 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { Topic } from '../../core/models';
-import { ApiService } from '../../core/services/api.service';
+import { ReferenceDataService } from '../../core/services/reference-data.service';
 import { ProgressBarComponent } from '../../shared/components/ui.components';
+import { SkeletonComponent } from '../../shared/ui/skeleton.component';
+import { ErrorStateComponent } from '../../shared/ui/error-state.component';
+import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
 
 @Component({
   selector: 'app-topics',
-  imports: [RouterLink, ProgressBarComponent, FormsModule],
+  imports: [RouterLink, ProgressBarComponent, FormsModule, SkeletonComponent, ErrorStateComponent, EmptyStateComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="page">
@@ -15,6 +18,9 @@ import { ProgressBarComponent } from '../../shared/components/ui.components';
         <input type="search" class="filter" placeholder="Filter topics…" [ngModel]="filter()" (ngModelChange)="filter.set($event)" />
         <label class="checkbox"><input type="checkbox" [ngModel]="withQuestions()" (ngModelChange)="withQuestions.set($event)" /> Only topics with questions</label>
       </div>
+      @if (state() === 'error') { <app-error-state class="mt" (retry)="load()" /> }
+      @else if (state() === 'loading') { <app-skeleton kind="list" [count]="8" /> }
+      @else {
       @for (g of groups(); track g.section) {
         <h2 class="mt">{{ g.section }}</h2>
         <div class="list">
@@ -24,6 +30,7 @@ import { ProgressBarComponent } from '../../shared/components/ui.components';
               <span class="dim mono">{{ t.progress.completed }}/{{ t.progress.total }}</span></a>
           }
         </div>
+      } @empty { <app-empty-state class="mt" icon="filter" title="No topics match" hint="Try a different filter." /> }
       }
     </div>`,
   styles: [`
@@ -36,8 +43,8 @@ import { ProgressBarComponent } from '../../shared/components/ui.components';
   `]
 })
 export class TopicsComponent {
-  private api = inject(ApiService);
-  readonly topics = signal<Topic[]>([]);
+  private ref = inject(ReferenceDataService);
+  readonly topics = computed<Topic[]>(() => this.ref.topics() ?? []);
   readonly filter = signal('');
   readonly withQuestions = signal(true);
   readonly groups = computed(() => {
@@ -50,5 +57,10 @@ export class TopicsComponent {
     }
     return [...map.entries()].map(([section, topics]) => ({ section, topics }));
   });
-  constructor() { this.api.topics().subscribe(t => this.topics.set(t)); }
+  readonly state = signal<'loading' | 'ready' | 'error'>(this.ref.topics() ? 'ready' : 'loading');
+  constructor() { this.load(); }
+  load(): void {
+    if (!this.ref.topics()) this.state.set('loading');
+    this.ref.refreshTopics().subscribe({ next: () => this.state.set('ready'), error: () => { if (!this.ref.topics()) this.state.set('error'); } });
+  }
 }

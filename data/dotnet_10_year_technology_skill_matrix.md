@@ -2044,3 +2044,323 @@ Each major skill area is covered by one or more interview topics
 
   Rapid-fire recall                   `rapid-fire`
   -----------------------------------------------------------------------
+
+------------------------------------------------------------------------
+
+# 33. JavaScript
+
+## Resume technologies
+
+-   JavaScript (ES2015+)
+-   DOM and Web APIs
+-   Fetch / AJAX
+-   Promises and async/await
+-   ES modules
+-   Node.js tooling
+
+## 10-year target
+
+### Language Fundamentals --- Core
+
+-   Primitive vs reference types, coercion and equality
+-   var / let / const, hoisting and the temporal dead zone
+-   Scope chain and strict mode
+-   Truthy / falsy values and nullish handling
+
+### Functions, Closures and this --- Core
+
+-   Closures and lexical scope
+-   this binding rules, call / apply / bind, arrow functions
+-   Higher-order functions, currying, memoization
+-   Debounce and throttle
+
+### Objects, Prototypes and Classes
+
+-   Prototype chain and Object.create
+-   ES6 classes, private fields, getters and setters
+-   Immutability, Object.freeze, structuredClone
+-   Shallow vs deep copy
+
+### Asynchronous JavaScript --- Core
+
+-   Event loop, call stack, microtasks and macrotasks
+-   Promises, Promise.all / allSettled / race / any
+-   async/await error handling and cancellation with AbortController
+-   Retry, timeout and concurrency limiting
+
+### Modern JavaScript Features
+
+-   Destructuring, spread, rest, optional chaining, nullish coalescing
+-   ES modules, dynamic import, tree shaking
+-   Iterators, generators, Map / Set / WeakMap / WeakRef
+-   Proxy and Reflect, Symbol
+
+### Browser, DOM and Web APIs
+
+-   Event propagation, delegation and passive listeners
+-   Fetch, CORS, cookies vs localStorage vs sessionStorage
+-   IntersectionObserver, ResizeObserver, MutationObserver
+-   Web Workers, Service Workers, requestAnimationFrame
+
+### Performance, Memory and Security
+
+-   Memory leaks, garbage collection, detached DOM nodes
+-   Reflow, repaint, layout thrashing, long tasks
+-   XSS, CSP, prototype pollution, safe JSON handling
+-   Bundle size, code splitting, lazy loading
+
+------------------------------------------------------------------------
+
+# 34. TypeScript
+
+## Resume technologies
+
+-   TypeScript 5.x
+-   tsconfig and strict mode
+-   Declaration files (.d.ts)
+-   Zod / runtime validation
+-   OpenAPI client generation
+
+## 10-year target
+
+### Type System Fundamentals --- Core
+
+-   Interfaces vs type aliases
+-   any vs unknown vs never
+-   Union and intersection types, literal types, as const
+-   Type narrowing, type guards, discriminated unions
+-   readonly, optional properties, satisfies
+
+### Generics and Utility Types --- Core
+
+-   Generic functions, classes and constraints
+-   Partial, Required, Readonly, Pick, Omit, Record
+-   ReturnType, Parameters, Awaited, NonNullable
+-   Default type parameters
+
+### Advanced Types
+
+-   Conditional types and infer
+-   Mapped types and key remapping
+-   Template literal types
+-   Branded (nominal) types
+-   Variance and structural typing
+
+### TypeScript in Real Projects
+
+-   Strict compiler flags and migration from JavaScript
+-   Module resolution, path aliases, project references
+-   Declaration merging and ambient types
+-   Enums vs union types
+-   Typed API clients and runtime validation of untrusted data
+
+------------------------------------------------------------------------
+
+# 35. Angular
+
+## Resume technologies
+
+-   Angular (standalone components)
+-   RxJS
+-   NgRx / Signal Store
+-   Angular Material
+-   Angular CLI
+-   Jasmine / Karma / Jest
+
+## 10-year target
+
+### Components and Templates --- Core
+
+-   Standalone components, signal inputs and outputs
+-   Built-in control flow (@if, @for, @switch)
+-   Content projection and template references
+-   Lifecycle hooks
+-   Pipes and directives
+
+### Change Detection and Signals --- Core
+
+-   Default vs OnPush change detection
+-   Signals, computed, effect, linkedSignal
+-   Zone.js and zoneless Angular
+-   Avoiding ExpressionChangedAfterItHasBeenChecked
+
+### Dependency Injection and Services
+
+-   Injector hierarchy and providedIn
+-   inject() function, injection tokens
+-   Multi providers and environment initializers
+-   Service scope and lifetimes
+
+### RxJS and Reactive Programming --- Core
+
+-   Observables vs Promises, hot vs cold
+-   switchMap, mergeMap, concatMap, exhaustMap
+-   Subjects, BehaviorSubject, shareReplay
+-   Unsubscription, takeUntilDestroyed, async pipe
+-   Error handling and retry
+
+### Routing, Guards and Lazy Loading
+
+-   Lazy-loaded routes and preloading strategies
+-   Functional guards and resolvers
+-   Route parameters and withComponentInputBinding
+-   Deferrable views (@defer)
+
+### Forms
+
+-   Template-driven vs reactive forms
+-   Typed forms, FormArray, dynamic forms
+-   Custom and async validators
+-   ControlValueAccessor
+
+### HTTP, Interceptors and Authentication
+
+-   HttpClient, functional interceptors
+-   Error handling, retry, caching
+-   Cookie-based auth, CSRF, token refresh
+-   Backend-for-frontend with ASP.NET Core
+
+### State Management
+
+-   Service with signals vs NgRx
+-   NgRx actions, reducers, selectors, effects
+-   NgRx Signal Store and entity adapters
+-   Optimistic updates
+
+### Performance, SSR and Testing
+
+-   trackBy / track, virtual scrolling, lazy images
+-   Server-side rendering, hydration, incremental hydration
+-   Bundle analysis and budgets
+-   TestBed, component harnesses, HttpTestingController
+-   End-to-end testing with Playwright or Cypress
+
+------------------------------------------------------------------------
+
+# 36. React
+
+## Resume technologies
+
+-   React 18 / 19
+-   Hooks
+-   Redux Toolkit / Zustand
+-   TanStack Query
+-   Next.js
+-   React Testing Library
+-   Vite
+
+## 10-year target
+
+### Components, JSX and Props --- Core
+
+-   Function components and JSX rules
+-   Props, children and composition
+-   Controlled vs uncontrolled components
+-   Keys and list rendering
+-   Conditional rendering patterns
+
+### Hooks --- Core
+
+-   useState, useReducer, useEffect, useRef
+-   useMemo, useCallback, useContext
+-   Custom hooks
+-   Rules of hooks and stale closures
+-   useId, useSyncExternalStore, useLayoutEffect
+
+### State Management and Context
+
+-   Lifting state vs context vs external stores
+-   Redux Toolkit and RTK Query
+-   Zustand and Jotai
+-   Server state vs client state
+
+### Rendering and Performance --- Core
+
+-   Reconciliation and the virtual DOM
+-   React.memo, memoization trade-offs, React Compiler
+-   Concurrent rendering, transitions, Suspense
+-   Code splitting with lazy
+-   List virtualization
+
+### Data Fetching and Forms
+
+-   TanStack Query caching and invalidation
+-   React Hook Form and Zod validation
+-   Optimistic updates and mutations
+-   Error boundaries and loading states
+
+### Routing, SSR and Server Components
+
+-   React Router and Next.js App Router
+-   Server Components vs Client Components
+-   Server Actions, streaming and hydration
+-   SSR vs SSG vs ISR
+
+### Testing and Accessibility
+
+-   React Testing Library and user-event
+-   Mock Service Worker for API mocks
+-   Accessible components, focus management, ARIA
+-   Playwright end-to-end tests
+
+------------------------------------------------------------------------
+
+# 37. Coding Questions
+
+## Resume technologies
+
+-   C# implementations of interview coding problems
+
+## 10-year target
+
+### String Manipulation --- Core
+
+-   Minimum Replacements to Eliminate Adjacent Equal Characters
+-   Minimum Replacements to Avoid Equal Adjacent Characters
+-   Minimum Deletions to Eliminate Adjacent Equal Characters
+-   Reverse Last Two Characters with a Space
+-   Group Words by Character Frequency
+-   Return the Last Lexicographical Substring
+-   Find the Largest Subset of a String
+-   Get Final String
+
+### Array Scans and Counting --- Core
+
+-   Count strictly decreasing-by-1 subarrays of length at least 2
+-   Get Minimum Increment
+-   Get Minimum Operations
+-   Minimum Hits Needed
+-   Maximum Increment to Make Array Ascending
+-   Find Length of Longest Bitonic Subarray
+-   Merge 2 Arrays
+-   Find Missing Integer
+-   Find Non-Repeated Elements
+-   Get Query Answers
+
+### Greedy and Heap Problems --- Core
+
+-   Maximum Revenue from Renting Highest-Stock VMs
+-   Maximum Revenue from VM Rentals
+-   Maximize Integer with Swap
+-   Card Packets
+
+### Hash Maps and Simulation --- Strong
+
+-   Design Authentication Manager
+-   Find Common Keys in Product Recommendations
+-   Compare Products from Three Separate Lists
+
+### Intervals and Range Sweeps --- Strong
+
+-   Minimum Number of Meeting Rooms (Intervals as List<List<Integer>>)
+-   Optimize Streaming Platform Sessions
+
+### Binary Search Trees and JSON Filtering --- Strong
+
+-   Search Values in a Binary Search Tree
+-   Retrieve and Filter Elite Clubs from Football Teams API
+
+### Math and Circular Movement --- Useful
+
+-   Count numbers of the form 3^x * 5^y within a range
+-   toolchanger (from your screenshot)

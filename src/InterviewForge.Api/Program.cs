@@ -67,6 +67,13 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 builder.Services.AddAuthorization();
 builder.Services.AddRateLimiter(o => { o.RejectionStatusCode=429; o.AddPolicy("auth", ctx => RateLimitPartition.GetFixedWindowLimiter(ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ => new FixedWindowRateLimiterOptions { PermitLimit=builder.Environment.IsEnvironment("Testing") ? 1000 : 10,Window=TimeSpan.FromMinutes(1),QueueLimit=0 })); });
 
+// Compress static assets only. API JSON is deliberately excluded so authenticated responses are never
+// compressed over HTTPS (BREACH-style attacks).
+builder.Services.AddResponseCompression(o =>
+{
+    o.EnableForHttps = true;
+    o.MimeTypes = ["text/html", "text/css", "text/javascript", "application/javascript", "image/svg+xml"];
+});
 builder.Services.AddControllers().AddJsonOptions(o =>
 {
     o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
@@ -119,8 +126,19 @@ else
     app.MapOpenApi("/openapi/{documentName}.json").RequireAuthorization(new Microsoft.AspNetCore.Authorization.AuthorizeAttribute { Roles = "Admin" });
 }
 
+app.UseResponseCompression();
 app.UseDefaultFiles();
-app.UseStaticFiles();
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+    {
+        // Angular emits content-hashed bundles (e.g. main-ABC12345.js): cache them for a year.
+        // Everything else (index.html, theme-init.js) must revalidate so deployments show up at once.
+        var name = ctx.File.Name;
+        var hashed = System.Text.RegularExpressions.Regex.IsMatch(name, @"-[A-Za-z0-9]{8}\.(js|css)$");
+        ctx.Context.Response.Headers.CacheControl = hashed ? "public, max-age=31536000, immutable" : "no-cache";
+    }
+});
 app.MapControllers();
 app.MapHealthChecks("/health", new HealthCheckOptions());
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });

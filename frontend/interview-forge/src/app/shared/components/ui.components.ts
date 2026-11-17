@@ -6,7 +6,7 @@ import { Difficulty, ProgressStatus, QuestionSummary } from '../../core/models';
   selector: 'app-progress-bar',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="pb" [class.thin]="thin()" role="progressbar" [attr.aria-valuenow]="pct()" aria-valuemin="0" aria-valuemax="100">
+    <div class="pb" [class.thin]="thin()" role="progressbar" [attr.aria-label]="label()" [attr.aria-valuenow]="pct()" [attr.aria-valuetext]="valueText()" aria-valuemin="0" aria-valuemax="100">
       <div class="fill" [style.width.%]="pct()"></div>
       @if (review() > 0) { <div class="fill review" [style.width.%]="reviewPct()"></div> }
     </div>`,
@@ -22,6 +22,8 @@ export class ProgressBarComponent {
   readonly total = input(0);
   readonly review = input(0);
   readonly thin = input(false);
+  readonly label = input('Progress');
+  readonly valueText = computed(() => `${this.value()} of ${this.total()} completed`);
   readonly pct = computed(() => this.total() ? Math.min(100, (this.value() / this.total()) * 100) : 0);
   readonly reviewPct = computed(() => this.total() ? (this.review() / this.total()) * 100 : 0);
 }
@@ -57,7 +59,7 @@ export class StatusBadgeComponent {
         @for (q of items(); track q.id; let i = $index) {
           <li>
             <a [routerLink]="['/questions', q.id]" [queryParams]="contextTopicId() ? { topic: contextTopicId() } : {}">
-              <span class="status-dot" [class]="'status-dot ' + q.status" [attr.title]="q.status"></span>
+              <span class="status-dot" [class]="'status-dot ' + q.status" aria-hidden="true"></span><span class="sr-only">{{ statusLabel(q.status) }}.</span>
               <span class="num">{{ offset() + i + 1 }}</span>
               <span class="qtext">
                 {{ q.text }}
@@ -81,4 +83,6 @@ export class QuestionListComponent {
   readonly offset = input(0);
   readonly contextTopicId = input<number | null>(null);
   readonly emptyText = input('No questions here yet.');
+  /** Status is shown as a coloured dot, so screen readers get the same information as text. */
+  statusLabel(s: ProgressStatus): string { return STATUS_LABEL[s]; }
 }

@@ -1,18 +1,20 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, viewChildren } from '@angular/core';
+import { FormsModule, NgForm } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AdminProgress, AdminUserDetail, ApiError, AuditEntry } from '../../core/models';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { DialogService } from '../../core/services/dialog.service';
 import { ToastService } from '../../core/services/toast.service';
+import { FieldValidationDirective, validateForm } from '../../shared/ui/field-validation.directive';
+import { TabListDirective } from '../../shared/ui/tab-list.directive';
 
 type Tab = 'profile' | 'security' | 'progress' | 'audit';
 
 @Component({
   selector: 'app-admin-user-detail',
-  imports: [FormsModule, RouterLink, DatePipe],
+  imports: [FormsModule, RouterLink, DatePipe, FieldValidationDirective, TabListDirective],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <p class="breadcrumb"><a routerLink="/admin/users">Users</a> / {{ u()?.displayName ?? '…' }}</p>
@@ -33,20 +35,18 @@ type Tab = 'profile' | 'security' | 'progress' | 'audit';
         </div>
       </div>
 
-      <div class="tabs" role="tablist" aria-label="User sections">
+      <div class="tabs" appTabList aria-label="User sections">
         @for (t of tabs; track t.id) {
-          <button role="tab" [attr.aria-selected]="tab() === t.id" [class.active]="tab() === t.id" (click)="select(t.id)">{{ t.label }}</button>
+          <button role="tab" [id]="'user-tab-' + t.id" aria-controls="user-panel" [attr.aria-selected]="tab() === t.id" [attr.tabindex]="tab() === t.id ? 0 : -1" [class.active]="tab() === t.id" (click)="select(t.id)">{{ t.label }}</button>
         }
       </div>
+      <div id="user-panel" role="tabpanel" tabindex="0" [attr.aria-labelledby]="'user-tab-' + tab()">
 
       @if (tab() === 'profile') {
-        <form class="card stack narrow" (ngSubmit)="saveProfile()">
-          <label>Username<input name="username" [(ngModel)]="username" required minlength="3" maxlength="32" autocapitalize="none">
-            @if (err('username')) { <span class="field-error" role="alert">{{ err('username') }}</span> }</label>
-          <label>Display name<input name="displayName" [(ngModel)]="displayName" required maxlength="80">
-            @if (err('displayName')) { <span class="field-error" role="alert">{{ err('displayName') }}</span> }</label>
-          <label>Email<input name="email" type="email" [(ngModel)]="email" required maxlength="254">
-            @if (err('email')) { <span class="field-error" role="alert">{{ err('email') }}</span> }</label>
+        <form #pf="ngForm" class="card stack narrow" (ngSubmit)="saveProfile(pf)">
+          <label>Username<input appField="Username" [serverError]="err('username')" name="username" [(ngModel)]="username" required minlength="3" maxlength="32" autocapitalize="none"></label>
+          <label>Display name<input appField="Display name" [serverError]="err('displayName')" name="displayName" [(ngModel)]="displayName" required maxlength="80"></label>
+          <label>Email<input appField="Email" [serverError]="err('email')" name="email" type="email" [(ngModel)]="email" required maxlength="254"></label>
           <div><button class="btn primary" [disabled]="busy()">Save changes</button></div>
         </form>
         <div class="card mt narrow">
@@ -104,6 +104,7 @@ type Tab = 'profile' | 'security' | 'progress' | 'audit';
           } @empty { <p class="muted">No administrative changes recorded for this user.</p> }
         </div>
       }
+      </div>
     } @else {
       <p class="loading" role="status">Loading…</p>
     }`,
@@ -154,7 +155,10 @@ export class AdminUserDetailComponent {
     this.u.set(d); this.username = d.username; this.displayName = d.displayName; this.email = d.email;
   }
 
-  saveProfile(): void {
+  private fields = viewChildren(FieldValidationDirective);
+
+  saveProfile(f: NgForm): void {
+    if (!validateForm(this.fields(), f.control)) return;
     this.busy.set(true); this.errors.set({});
     this.api.updateUser(this.id(), { username: this.username, displayName: this.displayName, email: this.email }).subscribe({
       next: d => { this.apply(d); this.busy.set(false); this.toast.show('Saved', 'ok'); },

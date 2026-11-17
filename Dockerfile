@@ -40,6 +40,8 @@ COPY --from=build /app/publish ./
 COPY --from=frontend /src/dist/interview-forge/ ./wwwroot/
 # Seed Markdown is baked into the image; a mounted /data may override it.
 COPY data/*.md data/*.json ./seed/
+COPY data/question-bank/ ./seed/question-bank/
+COPY data/examples/ ./seed/examples/
 COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh && mkdir -p /data && chown -R app:app /data /app
 
