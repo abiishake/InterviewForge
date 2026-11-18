@@ -221,6 +221,18 @@ public sealed class ImportService(IAppDbContext db, ImportOptions options, ILogg
         }
 
         await db.SaveChangesAsync(ct);
+
+        // Questions re-classified onto a skill-matrix topic leave their old importer-created bank topic empty.
+        // Remove only those: never user-created or admin-edited topics, and never topics that still hold questions.
+        var emptyBankTopics = await db.Topics
+            .Where(t => t.SourceKey != null && t.SourceKey.StartsWith("bank:topic:") && !t.IsUserCreated && !t.IsAdminEdited
+                        && !t.Questions.Any() && !t.RelatedQuestions.Any())
+            .ToListAsync(ct);
+        if (emptyBankTopics.Count > 0)
+        {
+            db.Topics.RemoveRange(emptyBankTopics);
+            await db.SaveChangesAsync(ct);
+        }
         await tx.CommitAsync(ct);
 
         report.Duration = sw.Elapsed;
