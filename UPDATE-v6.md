@@ -15,7 +15,7 @@ Four new skill-matrix sections (38-41, 26 topics with *Expected scope*) and **12
 
 Also: `data/classification-overrides.json` maps the 26 new question topics onto the new matrix topics, so *Expected scope* and the questions share one topic page (`ScopeCoverageTests` stays green: every scoped topic has questions).
 
-Every scope bullet of the four new sections now has at least one question that addresses it.
+The scope gaps found in a follow-up review (generics variance, XML serialization, globalization, reflection and generators, runtime config, PLINQ, HTTP/3, rate limiting, NuGet feeds, test frameworks, C# language features, chat reduction, image generation, Foundry Local, Storage Queues and Event Grid, SQL and Framework migration, NoSQL aggregates, Elastic and AKS monitoring, Helm and CNAB, MAUI offline sync) now each have a question. This was a manual review, not an automated bullet-to-question mapping.
 
 ## Upgrade steps
 
