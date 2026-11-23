@@ -8,15 +8,17 @@ import { ToastService } from '../../core/services/toast.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <h1>Settings</h1>
-    <section class="card narrow" aria-labelledby="reg-h">
-      <h2 id="reg-h">Public registration</h2>
-      <p class="muted">When closed, the sign-up form is hidden and new accounts can only be created by an administrator. Changes are written to the audit log.</p>
-      @if (value(); as v) {
-        <p>Currently <span class="badge" [class.ok]="v === 'Open'" [class.warn]="v === 'Closed'">{{ v }}</span></p>
-        <button class="btn" (click)="toggle()">{{ v === 'Open' ? 'Close registration' : 'Open registration' }}</button>
-      } @else { <p class="loading" role="status">Loading…</p> }
+    <section class="panel narrow" aria-labelledby="reg-h">
+      <div class="panel-head"><h2 id="reg-h">Public registration</h2><span class="spacer"></span>
+        @if (value(); as v) { <span class="badge" [class.ok]="v === 'Open'" [class.warn]="v === 'Closed'">{{ v }}</span> }</div>
+      <div class="panel-body">
+        <p class="muted">When closed, the sign-up form is hidden and new accounts can only be created by an administrator. Changes are written to the audit log.</p>
+        @if (value(); as v) {
+          <button class="btn" (click)="toggle()">{{ v === 'Open' ? 'Close registration' : 'Open registration' }}</button>
+        } @else { <p class="loading" role="status">Loading…</p> }
+      </div>
     </section>`,
-  styles: [`.narrow { max-width: 600px; }`]
+  styles: [`.narrow { max-width: 640px; } .panel-body p { margin: 0 0 12px; }`]
 })
 export class AdminSettingsComponent implements OnInit {
   private api = inject(ApiService);

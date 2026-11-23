@@ -12,11 +12,11 @@ import { AuthService } from '../../core/services/auth.service';
   imports: [FormsModule, RouterLink, DatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="row">
-      <h1>Users</h1><span class="spacer"></span>
+    <div class="row head">
+      <div><h1>Users</h1><p class="muted sub">Accounts, roles and status. Progress is shown read-only; notes stay private.</p></div><span class="spacer"></span>
       <a class="btn primary" routerLink="/admin/users/new">New user</a>
     </div>
-    <div class="row filters">
+    <div class="toolbar filters">
       <input type="search" name="search" [(ngModel)]="search" (ngModelChange)="typed.next()" placeholder="Search name, username or email" aria-label="Search users">
       <select name="role" [(ngModel)]="role" (ngModelChange)="reload()" aria-label="Role">
         <option value="all">All roles</option><option value="Admin">Admins</option><option value="Member">Members</option>
@@ -34,9 +34,9 @@ import { AuthService } from '../../core/services/auth.service';
     } @else if (loading() && !items().length) {
       <p class="loading" role="status">Loading users…</p>
     } @else {
-      <div class="table-wrap mt">
+      <div class="panel"><div class="table-wrap">
         <table class="data stack-sm">
-          <thead><tr><th>User</th><th>Role</th><th>Status</th><th>Last sign-in</th><th>Completed</th><th>Contributions</th></tr></thead>
+          <thead><tr><th>User</th><th>Role</th><th>Status</th><th>Last sign-in</th><th class="num">Completed</th><th class="num">Contributions</th></tr></thead>
           <tbody>
             @for (u of items(); track u.id) {
               <tr>
@@ -45,15 +45,15 @@ import { AuthService } from '../../core/services/auth.service';
                 <td data-label="Role"><span class="badge" [class.accent]="u.role === 'Admin'">{{ u.role }}</span></td>
                 <td data-label="Status">@if (u.isDisabled) { <span class="badge danger">Disabled</span> } @else { <span class="badge ok">Active</span> }</td>
                 <td data-label="Last sign-in" [title]="u.lastLoginAt ?? ''">{{ u.lastLoginAt ? (u.lastLoginAt | date:'medium') : 'Never' }}</td>
-                <td data-label="Completed">{{ u.completed }}</td>
-                <td data-label="Contributions">{{ u.contributions }}</td>
+                <td data-label="Completed" class="num">{{ u.completed }}</td>
+                <td data-label="Contributions" class="num">{{ u.contributions }}</td>
               </tr>
             } @empty {
               <tr><td colspan="6" class="muted">No users match these filters.</td></tr>
             }
           </tbody>
         </table>
-      </div>
+      </div></div>
       <div class="row mt">
         <span class="muted" role="status">{{ rangeLabel() }}</span><span class="spacer"></span>
         <button class="btn sm" (click)="go(page() - 1)" [disabled]="page() <= 1">Previous</button>
@@ -61,7 +61,8 @@ import { AuthService } from '../../core/services/auth.service';
       </div>
     }`,
   styles: [`
-    .filters { margin-top: 12px; } .filters input { flex: 1 1 220px; width: auto; } .filters select { width: auto; flex: 0 1 auto; }
+    .head { align-items: flex-end; margin-bottom: 14px; } .head h1 { margin: 0; } .sub { margin: 2px 0 0; font-size: 13px; }
+    .filters input { flex: 1 1 220px; width: auto; } .filters select { width: auto; flex: 0 1 auto; }
     .who { display: flex; align-items: center; gap: 10px; color: var(--text); } .who:hover { text-decoration: none; }
     .small { font-size: 12px; }
   `]

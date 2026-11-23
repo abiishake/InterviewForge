@@ -9,12 +9,17 @@ import { DialogService } from '../../core/services/dialog.service';
 import { ToastService } from '../../core/services/toast.service';
 import { FieldValidationDirective, validateForm } from '../../shared/ui/field-validation.directive';
 import { TabListDirective } from '../../shared/ui/tab-list.directive';
+import { HeatmapComponent } from '../../shared/ui/heatmap.component';
+import { IconComponent } from '../../shared/ui/icon.component';
+import { MeterComponent } from '../../shared/ui/meter.component';
+import { SkeletonComponent } from '../../shared/ui/skeleton.component';
+import { StatTileComponent } from '../../shared/ui/stat-tile.component';
 
 type Tab = 'profile' | 'security' | 'progress' | 'audit';
 
 @Component({
   selector: 'app-admin-user-detail',
-  imports: [FormsModule, RouterLink, DatePipe, FieldValidationDirective, TabListDirective],
+  imports: [FormsModule, RouterLink, DatePipe, FieldValidationDirective, TabListDirective, HeatmapComponent, IconComponent, MeterComponent, SkeletonComponent, StatTileComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <p class="breadcrumb"><a routerLink="/admin/users">Users</a> / {{ u()?.displayName ?? '…' }}</p>
@@ -78,23 +83,50 @@ type Tab = 'profile' | 'security' | 'progress' | 'audit';
       }
 
       @if (tab() === 'progress') {
-        <p class="muted">Read-only summary. Private notes are never shown to administrators.</p>
-        <div class="row stats">
-          <div class="card"><div class="stat-label">Completed</div><div class="stat-value">{{ d.completed }}</div></div>
-          <div class="card"><div class="stat-label">Needs review</div><div class="stat-value">{{ d.needsReview }}</div></div>
-          <div class="card"><div class="stat-label">Reviews</div><div class="stat-value">{{ d.reviews }}</div></div>
-          <div class="card"><div class="stat-label">Plans</div><div class="stat-value">{{ d.plans }}</div></div>
+        <p class="muted ro"><app-icon name="lock" [size]="14" /> Read-only summary. Private notes are never shown to administrators.</p>
+        <div class="tiles">
+          <app-stat-tile label="Completed" tone="ready" [value]="d.completed" />
+          <app-stat-tile label="Needs review" [tone]="d.needsReview ? 'warn' : ''" [value]="d.needsReview" />
+          <app-stat-tile label="Reviews" [value]="d.reviews" />
+          <app-stat-tile label="Plans" [value]="d.plans" />
         </div>
         @if (progress(); as p) {
-          <h3 class="mt">Question progress</h3>
-          <div class="stack">
-            @for (q of p.progress; track q.questionId) {
-              <div class="row"><a [routerLink]="['/questions', q.questionId]">{{ q.question }}</a><span class="badge">{{ q.status }}</span><span class="muted small">{{ q.reviewCount }} reviews</span>@if (q.isFavorite) { <span aria-label="Favourite">★</span> }</div>
-            } @empty { <p class="muted">No progress yet.</p> }
+          <div class="pgrid mt">
+            <section class="panel">
+              <div class="panel-head"><h2>Status breakdown</h2><span class="spacer"></span><span class="dim small mono">{{ p.progress.length }} touched</span></div>
+              <div class="panel-body stack">
+                @for (s of statusBreakdown(); track s.status) { <app-meter [label]="s.label" [value]="s.count" [total]="p.progress.length" /> }
+              </div>
+            </section>
+            <section class="panel">
+              <div class="panel-head"><h2>Activity</h2><span class="spacer"></span><span class="dim small">recent events</span></div>
+              <div class="panel-body"><app-heatmap [activity]="activityByDay()" [weeks]="8" [cell]="18" /></div>
+            </section>
           </div>
-          <h3 class="mt">Recent activity</h3>
-          @for (a of p.activity; track $index) { <p class="small">{{ a.occurredAt | date:'medium' }} · {{ a.kind }} · question #{{ a.questionId }}</p> } @empty { <p class="muted">No activity.</p> }
-        } @else { <p class="loading" role="status">Loading…</p> }
+          <section class="panel mt">
+            <div class="panel-head"><h2>Question progress</h2></div>
+            <div class="table-wrap">
+              <table class="data stack-sm">
+                <thead><tr><th>Question</th><th>Status</th><th class="num">Reviews</th><th>Next review</th></tr></thead>
+                <tbody>
+                  @for (q of p.progress; track q.questionId) {
+                    <tr><td data-label="Question"><a [routerLink]="['/questions', q.questionId]">{{ q.question }}</a> @if (q.isFavorite) { <span class="fav" aria-label="Favourite">★</span> }</td>
+                      <td data-label="Status"><span class="badge" [class.ok]="q.status === 'Completed'" [class.warn]="q.status === 'NeedsReview'" [class.info]="q.status === 'InProgress'">{{ q.status }}</span></td>
+                      <td data-label="Reviews" class="num">{{ q.reviewCount }}</td>
+                      <td data-label="Next review" class="small">{{ q.nextReviewAt ? (q.nextReviewAt | date:'MMM d, HH:mm') : '—' }}</td></tr>
+                  } @empty { <tr><td colspan="4" class="muted">No progress yet.</td></tr> }
+                </tbody>
+              </table>
+            </div>
+          </section>
+          <section class="panel mt">
+            <div class="panel-head"><h2>Recent activity</h2></div>
+            <ul class="events">
+              @for (a of p.activity; track $index) { <li><span class="mono dim">{{ a.occurredAt | date:'MMM d, HH:mm' }}</span><span class="badge">{{ a.kind }}</span><a [routerLink]="['/questions', a.questionId]">question #{{ a.questionId }}</a></li> }
+              @empty { <li class="muted">No activity.</li> }
+            </ul>
+          </section>
+        } @else { <app-skeleton kind="card" [count]="2" /> }
       }
 
       @if (tab() === 'audit') {
@@ -106,11 +138,18 @@ type Tab = 'profile' | 'security' | 'progress' | 'audit';
       }
       </div>
     } @else {
-      <p class="loading" role="status">Loading…</p>
+      <app-skeleton kind="detail" />
     }`,
   styles: [`
     .head { align-items: flex-start; gap: 16px; margin-bottom: 8px; } .big { width: 56px; height: 56px; font-size: 20px; }
-    .narrow { max-width: 600px; } .small { font-size: 12px; } .stats .card { min-width: 130px; }
+    .narrow { max-width: 640px; } .small { font-size: 12px; }
+    .ro { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+    .pgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 12px; }
+    .fav { color: var(--accent-text); }
+    .events { list-style: none; margin: 0; padding: 4px 14px; max-height: 360px; overflow-y: auto; }
+    .events li { display: flex; gap: 10px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+    .events li:last-child { border-bottom: 0; }
+    .mono { font-family: var(--mono); font-size: 12px; }
     .danger-zone { border-color: var(--danger); }
   `]
 })
@@ -126,6 +165,21 @@ export class AdminUserDetailComponent {
   readonly notFound = signal(false);
   readonly tab = signal<Tab>('profile');
   readonly progress = signal<AdminProgress | null>(null);
+  /** Read-only projections of the user's progress for the charts (no notes are ever loaded). */
+  readonly statusBreakdown = computed(() => {
+    const rows = this.progress()?.progress ?? [];
+    const labels: Record<string, string> = { Completed: 'Completed', InProgress: 'In progress', NeedsReview: 'Needs review', NotStarted: 'Not started' };
+    return Object.keys(labels).map(status => ({ status, label: labels[status], count: rows.filter(r => r.status === status).length })).filter(s => s.count > 0 || s.status !== 'NotStarted');
+  });
+  readonly activityByDay = computed(() => {
+    const counts = new Map<string, number>();
+    for (const a of this.progress()?.activity ?? []) {
+      const d = new Date(a.occurredAt);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    return [...counts].map(([date, count]) => ({ date, count }));
+  });
   readonly audit = signal<AuditEntry[]>([]);
   readonly busy = signal(false);
   readonly errors = signal<Record<string, string[]>>({});

@@ -45,7 +45,7 @@ export class HeatmapComponent {
 
   readonly cells = computed<Cell[]>(() => {
     const byDate = new Map(this.activity().map(a => [a.date.slice(0, 10), a.count]));
-    const end = parse(this.today() ?? iso(new Date()));
+    const end = parse(this.today() ?? localIso(new Date()));
     // last column ends on the Sunday of the current week; start on a Monday
     const dow = (end.getUTCDay() + 6) % 7; // Mon=0
     const last = addDays(end, 6 - dow);
@@ -70,3 +70,4 @@ export class HeatmapComponent {
 function parse(s: string): Date { const [y, m, d] = s.slice(0, 10).split('-').map(Number); return new Date(Date.UTC(y, m - 1, d)); }
 function iso(d: Date): string { return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`; }
 function addDays(d: Date, n: number): Date { const r = new Date(d); r.setUTCDate(r.getUTCDate() + n); return r; }
+function localIso(d: Date): string { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }

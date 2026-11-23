@@ -8,7 +8,7 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
   template: `
     <div class="page">
       <div class="eyebrow">Administration</div>
-      <nav class="chips" aria-label="Administration">
+      <nav class="tabs admin-tabs" aria-label="Administration">
         <a routerLink="users" routerLinkActive="active" ariaCurrentWhenActive="page">Users</a>
         <a routerLink="feedback" routerLinkActive="active" ariaCurrentWhenActive="page">Feedback</a>
         <a routerLink="import" routerLinkActive="active" ariaCurrentWhenActive="page">Import</a>
