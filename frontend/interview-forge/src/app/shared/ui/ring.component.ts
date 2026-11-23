@@ -6,8 +6,8 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <svg [attr.width]="size()" [attr.height]="size()" viewBox="0 0 44 44" role="img" [attr.aria-label]="label() || pct() + ' percent'">
-      <circle cx="22" cy="22" r="18" fill="none" stroke="var(--border)" stroke-width="4" />
-      <circle cx="22" cy="22" r="18" fill="none" stroke="var(--ok)" stroke-width="4" stroke-linecap="round"
+      <circle cx="22" cy="22" r="18" fill="none" stroke="var(--heat-0)" stroke-width="4" />
+      <circle cx="22" cy="22" r="18" fill="none" stroke="var(--ready)" stroke-width="4" stroke-linecap="round"
         [attr.stroke-dasharray]="dash()" transform="rotate(-90 22 22)" />
       <text x="22" y="26" text-anchor="middle" font-size="11" font-weight="600" fill="currentColor">{{ pct() }}%</text>
     </svg>`,
