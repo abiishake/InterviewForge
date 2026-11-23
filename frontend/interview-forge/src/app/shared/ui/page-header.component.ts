@@ -26,6 +26,8 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
     p { margin: 4px 0 0; color: var(--text-muted); font-size: 13.5px; max-width: 70ch; }
     .actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
     .actions:empty { display: none; }
+    /* pages wrap their buttons in <div actions>; flatten it so the buttons themselves get the flex gap */
+    .actions ::ng-deep > [actions] { display: contents; }
   `]
 })
 export class PageHeaderComponent {
