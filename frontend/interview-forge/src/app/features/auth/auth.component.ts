@@ -72,7 +72,9 @@ import { IconComponent } from '../../shared/ui/icon.component';
     .form-side { padding: 36px 32px; }
     .mobile-brand { display: none; }
     h1 { margin: 0; } .sub { margin: 4px 0 0; color: var(--text-muted); font-size: 13.5px; }
-    .pw { display: flex; gap: 8px; } .pw input { flex: 1; min-width: 0; }
+    /* input + Show share the first row; the validation message (inserted after the input) wraps below them */
+    .pw { display: flex; flex-wrap: wrap; gap: 8px; } .pw input { flex: 1 1 0; min-width: 0; }
+    .pw ::ng-deep app-field-error { order: 3; flex-basis: 100%; }
     .hint { margin: -6px 0 0; font-size: 12px; color: var(--text-muted); }
     .submit { min-height: 40px; margin-top: 4px; }
     .notice { background: var(--info-soft); border: 1px solid var(--info); border-radius: var(--radius-sm); padding: 10px 12px; margin: 12px 0 0; }
