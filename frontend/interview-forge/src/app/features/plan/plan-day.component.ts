@@ -9,35 +9,37 @@ import { ToastService } from '../../core/services/toast.service';
 import { createLatest } from '../../core/util/latest';
 import { SkeletonComponent } from '../../shared/ui/skeleton.component';
 import { ErrorStateComponent } from '../../shared/ui/error-state.component';
-import { DifficultyBadgeComponent, ProgressBarComponent, StatusBadgeComponent } from '../../shared/components/ui.components';
+import { IconComponent } from '../../shared/ui/icon.component';
+import { MeterComponent } from '../../shared/ui/meter.component';
+import { PageHeaderComponent } from '../../shared/ui/page-header.component';
+import { DifficultyBadgeComponent, StatusBadgeComponent } from '../../shared/components/ui.components';
 
 @Component({
   selector: 'app-plan-day',
-  imports: [RouterLink, ProgressBarComponent, DifficultyBadgeComponent, StatusBadgeComponent, DatePipe, FormsModule, SkeletonComponent, ErrorStateComponent],
+  imports: [RouterLink, DifficultyBadgeComponent, StatusBadgeComponent, DatePipe, FormsModule, SkeletonComponent, ErrorStateComponent, IconComponent, MeterComponent, PageHeaderComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="page">
       @if (detail(); as d) {
-        <div class="breadcrumb"><a routerLink="/plan">{{ plan()?.name ?? 'Plan' }}</a> / Day {{ d.day.dayNumber }}</div>
-        <div class="page-header">
-          <div>
-            <h1>Day {{ d.day.dayNumber }} @if (d.day.isToday) { <span class="badge accent">today</span> } @if (d.day.status === 'Skipped') { <span class="badge">skipped</span> }</h1>
-            <p>{{ d.day.date | date:'fullDate' }} · {{ d.day.completed }} / {{ d.day.total }} completed</p>
+        <app-page-header [title]="'Day ' + d.day.dayNumber" [description]="(d.day.date | date:'fullDate') + ' · ' + d.day.completed + ' of ' + d.day.total + ' completed'">
+          <div crumbs class="breadcrumb"><a routerLink="/plan">{{ plan()?.name ?? 'Plan' }}</a> / Day {{ d.day.dayNumber }}</div>
+          <div class="badges">@if (d.day.isToday) { <span class="badge accent">today</span> } @if (d.day.status === 'Skipped') { <span class="badge">skipped</span> }</div>
+          <div actions>
+            <div class="seg" role="group" aria-label="Change day">
+              <a class="btn icon" [class.disabled]="dayNum() <= 1" [attr.aria-disabled]="dayNum() <= 1" [routerLink]="dayNum() > 1 ? ['/plan', planIdNum(), 'day', dayNum() - 1] : null" [attr.aria-label]="'Day ' + (dayNum() - 1)"><app-icon name="chevron-left" [size]="16" /></a>
+              <a class="btn icon" [class.disabled]="!plan() || dayNum() >= plan()!.durationDays" [routerLink]="plan() && dayNum() < plan()!.durationDays ? ['/plan', planIdNum(), 'day', dayNum() + 1] : null" [attr.aria-label]="'Day ' + (dayNum() + 1)"><app-icon name="chevron-right" [size]="16" /></a>
+            </div>
+            @if (d.day.status !== 'Skipped' && d.day.completed < d.day.total) { <button class="btn" (click)="skip()">Skip day</button> }
+            @if (firstOpen(); as f) { <a class="btn primary" [routerLink]="['/questions', f.questionId]" [queryParams]="{ plan: planIdNum(), day: dayNum() }"><app-icon name="play" [size]="14" /> Start</a> }
           </div>
-          <div class="row">
-            @if (dayNum() > 1) { <a class="btn" [routerLink]="['/plan', planIdNum(), 'day', dayNum() - 1]">← Day {{ dayNum() - 1 }}</a> }
-            @if (plan() && dayNum() < plan()!.durationDays) { <a class="btn" [routerLink]="['/plan', planIdNum(), 'day', dayNum() + 1]">Day {{ dayNum() + 1 }} →</a> }
-            @if (firstOpen(); as f) { <a class="btn primary" [routerLink]="['/questions', f.questionId]" [queryParams]="{ plan: planIdNum(), day: dayNum() }">Start</a> }
-            @if (d.day.status !== 'Skipped' && d.day.completed < d.day.total) { <button class="btn ghost" (click)="skip()">Skip day</button> }
-          </div>
-        </div>
-        <app-progress-bar [value]="d.day.completed" [total]="d.day.total" />
+        </app-page-header>
+        <section class="panel"><div class="panel-body"><app-meter class="lg" label="Day progress" [value]="d.day.completed" [total]="d.day.total" /></div></section>
 
         @for (g of d.topics; track g.topicId) {
-          <div class="group mt">
-            <div class="row"><span class="dim small">{{ g.sectionName }} →</span><a [routerLink]="['/topics', g.topicId]"><b>{{ g.topicName }}</b></a>
-              <span class="spacer"></span><span class="dim small">{{ g.completed }}/{{ g.total }}</span></div>
-            <ol class="qlist mt">
+          <section class="panel mt">
+            <div class="panel-head"><span class="dim small">{{ g.sectionName }} /</span><a [routerLink]="['/topics', g.topicId]"><h2>{{ g.topicName }}</h2></a>
+              <span class="spacer"></span><span class="dim small mono">{{ g.completed }}/{{ g.total }}</span></div>
+            <ol class="qlist">
               @for (i of itemsFor(g.topicId); track i.id) {
                 <li class="item">
                   <a [routerLink]="['/questions', i.questionId]" [queryParams]="{ plan: planIdNum(), day: dayNum() }">
@@ -52,17 +54,19 @@ import { DifficultyBadgeComponent, ProgressBarComponent, StatusBadgeComponent } 
                 </li>
               }
             </ol>
-          </div>
+          </section>
         } @empty { <div class="empty mt">No questions scheduled for this day. Use it to catch up or review.</div> }
       } @else if (failed()) { <app-error-state title="Day not available" hint="This day could not be loaded." (retry)="load()" /> }
       @else { <app-skeleton kind="list" [count]="6" /> }
     </div>`,
   styles: [`
-    .small { font-size: 13px; }
-    .item { display: flex; align-items: center; }
+    .badges { display: flex; gap: 6px; margin-top: 6px; } .badges:empty { display: none; }
+    .seg { display: inline-flex; } .seg .btn:first-child { border-radius: var(--radius-sm) 0 0 var(--radius-sm); } .seg .btn:last-child { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; margin-left: -1px; }
+    .btn.disabled { opacity: .45; pointer-events: none; }
+    .panel-head a { color: var(--text); } .panel-head a:hover h2 { text-decoration: underline; }
+    .item { display: flex; align-items: center; flex-wrap: wrap; }
     .item a { flex: 1; align-items: center !important; }
     .move { padding-right: 12px; }
-    .item { flex-wrap: wrap; }
   `]
 })
 export class PlanDayComponent {

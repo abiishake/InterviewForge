@@ -11,13 +11,13 @@ interface Cell { date: string; count: number; level: number; future: boolean; }
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="wrap" role="img" [attr.aria-label]="summary()">
-      <div class="grid" [style.grid-template-columns]="'repeat(' + weeks() + ', minmax(0, 1fr))'" aria-hidden="true">
+      <div class="grid" [style.grid-template-columns]="'repeat(' + weeks() + ', minmax(0, ' + cell() + 'px))'" aria-hidden="true">
         @for (c of cells(); track c.date) {
-          <span class="c" [class]="'c l' + c.level" [class.future]="c.future" [attr.title]="c.future ? null : c.date + ': ' + c.count + (c.count === 1 ? ' question' : ' questions')"></span>
+          <span class="c" [class]="'c l' + c.level" [class.future]="c.future" [attr.title]="c.future ? null : c.date + ': ' + c.count + (c.count === 1 ? ' action' : ' actions')"></span>
         }
       </div>
       <div class="legend" aria-hidden="true">
-        <span>{{ total() }} in {{ weeks() }} weeks</span><span class="spacer"></span>
+        <span>{{ total() }} actions · {{ activeDays() }} active days</span><span class="spacer"></span>
         <span>Less</span><span class="c l0"></span><span class="c l1"></span><span class="c l2"></span><span class="c l3"></span><span>More</span>
       </div>
     </div>`,
@@ -36,7 +36,10 @@ export class HeatmapComponent {
   readonly activity = input<{ date: string; count: number }[]>([]);
   /** yyyy-MM-dd in the user's time zone; defaults to the browser date. */
   readonly today = input<string | undefined>(undefined);
-  readonly weeks = input(12);
+  readonly weeks = input(5);
+  /** Maximum cell size in px; cells shrink to fit narrow containers. */
+  readonly cell = input(20);
+  readonly activeDays = computed(() => this.activity().filter(a => a.count > 0).length);
 
   readonly total = computed(() => this.activity().reduce((s, a) => s + a.count, 0));
 
@@ -60,7 +63,7 @@ export class HeatmapComponent {
 
   readonly summary = computed(() => {
     const active = this.cells().filter(c => c.count > 0).length;
-    return `Activity: ${this.total()} questions worked on across ${active} days in the last ${this.weeks()} weeks.`;
+    return `Activity: ${this.total()} study actions across ${active} days in the last ${this.weeks()} weeks.`;
   });
 }
 
