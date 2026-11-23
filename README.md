@@ -27,7 +27,7 @@ docker compose build          # builds Angular + .NET, runs all tests
 docker compose up -d
 ```
 
-Open **http://SERVER_IP:8888**. On first start the app creates `./data/interviewforge.db`, applies migrations and imports the Markdown seed files (≈540 questions with code examples, 29 sections incl. JavaScript, TypeScript, Angular, React, AI for .NET Developers, .NET Platform Fundamentals, Azure SDK & Cloud Services and .NET Architecture Guidance, 49 algorithms).
+Open **http://SERVER_IP:8888**. On first start the app creates `./data/interviewforge.db`, applies migrations and imports the Markdown seed files (≈560 questions with code examples, 29 sections incl. JavaScript, TypeScript, Angular, React, AI for .NET Developers, .NET Platform Fundamentals, Azure SDK & Cloud Services and .NET Architecture Guidance, 49 algorithms).
 
 If a firewall is active: `sudo ufw allow 8888/tcp`.
 

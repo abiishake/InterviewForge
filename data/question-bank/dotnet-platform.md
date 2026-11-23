@@ -129,6 +129,88 @@ var total = new Money(10m, "EUR").Add(new Money(5.5m, "EUR"));   // 15.50 EUR
 -   Why is default(Money) a problem for a value object?
 -   Record class or record struct for a DTO?
 
+## dn-memory-004 --- What are generic math and covariance/contravariance in .NET generics?
+
+**question_id:** `dn-memory-004`\
+**topic_id:** `dn-memory`\
+**difficulty:** `Senior`\
+**question_type:** `Conceptual / Practical`
+
+**Question**
+
+What are generic math and covariance/contravariance in .NET generics?
+
+**Answer**
+
+**Covariance** (`out T`) lets a `IEnumerable<Derived>` be used as `IEnumerable<Base>` because T only flows *out*; **contravariance** (`in T`) lets an `Action<Base>` be used as `Action<Derived>` because T only flows *in*. Variance applies to generic **interfaces and delegates** only (not classes, not `List<T>`, which is invariant because it both reads and writes) and not to value-type arguments. It explains why `IReadOnlyList<Dog>` converts to `IReadOnlyList<Animal>` but `List<Dog>` does not convert to `List<Animal>` (that would allow adding a Cat). **Generic math** (.NET 7+, C# 11) adds `static abstract` interface members and interfaces such as `INumber<T>`, `IAdditionOperators<T,T,T>` and `IParsable<T>`, so one algorithm works across `int`, `double`, `decimal` or your own struct without boxing or duplicated overloads. Constrain with `where T : INumber<T>`, use `T.Zero` and operators directly. Typical uses: numeric libraries, aggregations, parsers; the cost is more complex signatures, so use it where duplication is real.
+
+Real-world example: one Sum/Average implementation for every numeric type, and a variance-friendly handler interface.
+
+```csharp
+public static T Sum<T>(IEnumerable<T> values) where T : INumber<T>
+{
+    T total = T.Zero;
+    foreach (var v in values) total += v;
+    return total;
+}
+var a = Sum(new[] { 1, 2, 3 });            // int
+var b = Sum(new[] { 1.5m, 2.5m });         // decimal
+
+public interface IEventHandler<in TEvent> { Task HandleAsync(TEvent e); }       // contravariant
+IEventHandler<OrderEvent> general = new AuditHandler();
+IEventHandler<OrderPlaced> specific = general;                                    // OrderPlaced : OrderEvent
+```
+
+**Keywords:** `generics, covariance, contravariance, generic math, INumber, static abstract, in out`
+
+**Follow-ups:**
+
+-   Why is List<T> invariant while IEnumerable<T> is covariant?
+-   What does a static abstract interface member allow that a normal interface does not?
+-   Why do variance rules not apply to value-type type arguments?
+
+## dn-memory-005 --- How do delegates, events, the observer pattern and IObservable work, and how do events cause memory leaks?
+
+**question_id:** `dn-memory-005`\
+**topic_id:** `dn-memory`\
+**difficulty:** `Senior`\
+**question_type:** `Conceptual / Practical`
+
+**Question**
+
+How do delegates, events, the observer pattern and IObservable work, and how do events cause memory leaks?
+
+**Answer**
+
+A **delegate** is a type-safe function reference (`Func<>`, `Action<>`, custom); a **multicast** delegate invokes a list of handlers. An **event** is a delegate field exposed so outside code can only `+=`/`-=`, while the owner raises it (`Changed?.Invoke(this, args)` - copy-safe and null-safe). Convention: `EventHandler<TEventArgs>`, `sender, args`. This is the language form of the **observer pattern**; `IObservable<T>/IObserver<T>` (and Rx.NET) formalise it as streams with `OnNext/OnError/OnCompleted` and composable operators (Throttle, Buffer, Merge). **Leaks**: a publisher holds strong references to subscribers, so a long-lived publisher (static event, singleton service) keeps short-lived subscribers (view models, scoped objects) alive until they unsubscribe. Fix by unsubscribing (`-=`, `IDisposable` subscriptions), weak events (`WeakReferenceMessenger`), or scoping lifetimes. Also: handlers run synchronously on the raising thread, an exception in one handler stops the rest, and async handlers should be `Func<Task>` events invoked with care (`async void` is only for UI event handlers).
+
+Real-world example: a service event with a disposable subscription so subscribers can detach.
+
+```csharp
+public sealed class PriceFeed
+{
+    public event EventHandler<PriceChangedEventArgs>? PriceChanged;
+    internal void Publish(string sku, decimal price) => PriceChanged?.Invoke(this, new(sku, price));
+}
+public sealed record PriceChangedEventArgs(string Sku, decimal Price);
+
+public sealed class PriceWatcher : IDisposable
+{
+    private readonly PriceFeed _feed;
+    public PriceWatcher(PriceFeed feed) { _feed = feed; _feed.PriceChanged += OnChanged; }
+    private void OnChanged(object? s, PriceChangedEventArgs e) => Console.WriteLine($"{e.Sku}: {e.Price}");
+    public void Dispose() => _feed.PriceChanged -= OnChanged;   // without this a singleton feed keeps the watcher alive
+}
+```
+
+**Keywords:** `delegate, event, observer pattern, IObservable, Rx.NET, memory leak, weak event, multicast`
+
+**Follow-ups:**
+
+-   How would you find a leak caused by a static event?
+-   What happens when one handler of a multicast delegate throws?
+-   When would you choose Rx over plain events or Channels?
+
 # TOPIC --- Text, Serialization and Time
 **topic_id:** `dn-text`
 **priority:** `Core`
@@ -317,6 +399,89 @@ public static partial class OrderCode
 -   Why is a catastrophic pattern a security issue and not just a bug?
 -   When is string.Split or Span parsing better than a regex?
 
+## dn-text-005 --- How does XML serialization work in .NET, and why was BinaryFormatter removed?
+
+**question_id:** `dn-text-005`\
+**topic_id:** `dn-text`\
+**difficulty:** `Intermediate`\
+**question_type:** `Conceptual / Security`
+
+**Question**
+
+How does XML serialization work in .NET, and why was BinaryFormatter removed?
+
+**Answer**
+
+`XmlSerializer` maps public read/write properties and fields to XML using attributes (`[XmlElement]`, `[XmlAttribute]`, `[XmlArray]`, `[XmlIgnore]`, `[XmlInclude]` for derived types) and generates serialization code; it needs a public parameterless constructor and cannot handle cycles or interfaces. `DataContractSerializer` is opt-in (`[DataContract]/[DataMember]`) and was the WCF default. For XML documents use `XDocument`/LINQ to XML or `XmlReader/XmlWriter` for streaming large files. Use `XmlReaderSettings` with `DtdProcessing.Prohibit` and no `XmlResolver` to prevent **XXE** attacks. **BinaryFormatter** (and SoapFormatter, NetDataContractSerializer, LosFormatter) is **insecure by design**: deserialising attacker-controlled bytes can instantiate arbitrary types and run code, and it cannot be made safe; it was obsoleted in .NET 5-7 and removed from .NET 9. Replace with System.Text.Json, protobuf, MessagePack or XmlSerializer with known types, and migrate persisted binary blobs deliberately.
+
+Real-world example: hardened XML reading and a replacement for a binary-serialised cache.
+
+```csharp
+var settings = new XmlReaderSettings { DtdProcessing = DtdProcessing.Prohibit, XmlResolver = null, MaxCharactersFromEntities = 1024 };
+using var reader = XmlReader.Create(stream, settings);
+var order = (Order)new XmlSerializer(typeof(Order)).Deserialize(reader)!;
+
+[XmlRoot("order")]
+public sealed class Order
+{
+    [XmlAttribute("id")] public int Id { get; set; }
+    [XmlElement("line")] public List<OrderLine> Lines { get; set; } = [];
+    [XmlIgnore] public string InternalNote { get; set; } = "";
+}
+
+// replace BinaryFormatter cache entries
+byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(order, AppJsonContext.Default.Order);
+```
+
+**Keywords:** `XmlSerializer, DataContractSerializer, XXE, BinaryFormatter, deserialization attack, XDocument, XmlReaderSettings`
+
+**Follow-ups:**
+
+-   What is an XXE attack and how do you prevent it in .NET?
+-   Why can BinaryFormatter not be made safe with a type allow-list?
+-   How would you migrate existing BinaryFormatter data?
+
+## dn-text-006 --- How do globalization, ICU and localization work in .NET apps?
+
+**question_id:** `dn-text-006`\
+**topic_id:** `dn-text`\
+**difficulty:** `Senior`\
+**question_type:** `Practical`
+
+**Question**
+
+How do globalization, ICU and localization work in .NET apps?
+
+**Answer**
+
+**Globalization** is making code culture-aware; **localization** is translating UI and formats per culture. Key rules: use `CultureInfo.InvariantCulture` (or ordinal comparison) for machine data - parsing, persistence, protocols, keys - and the user's culture only for display; always pass `StringComparison` explicitly; avoid `ToLower()` for comparisons (Turkish i). `CurrentCulture` drives formats, `CurrentUICulture` drives resource lookup. On Linux and modern .NET, culture data comes from **ICU** (not NLS); containers without ICU fail at startup unless you install `libicu` or set `InvariantGlobalization=true` (smaller and faster, but only invariant behaviour - wrong for real localisation). Localise text with `.resx` resources and `IStringLocalizer<T>` in ASP.NET Core (`AddLocalization`, `UseRequestLocalization` picking culture from the Accept-Language header, cookie or route), satellite assemblies, pluralisation-aware libraries and right-to-left layout. Store dates in UTC, format at the edge, and test with pseudo-locales.
+
+Real-world example: request localization with supported cultures and a localised message.
+
+```csharp
+builder.Services.AddLocalization(o => o.ResourcesPath = "Resources");
+
+var supported = new[] { "en-US", "de-DE", "ar-SA" };
+app.UseRequestLocalization(new RequestLocalizationOptions()
+    .SetDefaultCulture("en-US").AddSupportedCultures(supported).AddSupportedUICultures(supported));
+
+app.MapGet("/greeting", (IStringLocalizer<Shared> L) => Results.Ok(new
+{
+    text = L["Welcome", "Ada"].Value,                       // Resources/Shared.de-DE.resx
+    price = 1234.5m.ToString("C", CultureInfo.CurrentCulture)
+}));
+
+bool same = string.Equals(a, b, StringComparison.OrdinalIgnoreCase);   // never culture-sensitive for identifiers
+```
+
+**Keywords:** `globalization, localization, ICU, InvariantGlobalization, CultureInfo, IStringLocalizer, resx, UseRequestLocalization`
+
+**Follow-ups:**
+
+-   Why do Alpine containers sometimes crash with an ICU error?
+-   What is the Turkish-i problem?
+-   Which culture do you use when parsing a number from a JSON file?
+
 # TOPIC --- Runtime, Assemblies and Deployment
 **topic_id:** `dn-runtime`
 **priority:** `Strong`
@@ -444,6 +609,88 @@ dotnet publish -c Release -r linux-x64 -p:PublishAot=true
 -   Why does trimming break reflection-based libraries and how do you fix it?
 -   What changes in patching when you go self-contained?
 -   Which ASP.NET Core features are not AOT-compatible?
+
+## dn-runtime-004 --- What are reflection, attributes, source generators and Roslyn analyzers, and when do you use each?
+
+**question_id:** `dn-runtime-004`\
+**topic_id:** `dn-runtime`\
+**difficulty:** `Senior`\
+**question_type:** `Conceptual / Practical`
+
+**Question**
+
+What are reflection, attributes, source generators and Roslyn analyzers, and when do you use each?
+
+**Answer**
+
+**Reflection** inspects and invokes types at runtime (`Type`, `MethodInfo`, `Activator`, `GetCustomAttributes`): flexible (plugins, serializers, DI, ORMs) but slow, not trim/AOT-friendly and not checked by the compiler; cache `MethodInfo`/delegates or use expression trees. **Attributes** attach metadata read by the compiler, runtime or your code. **Source generators** run during compilation (`IIncrementalGenerator`), inspect the syntax/semantic model and **emit extra C# files** - replacing reflection with compile-time code (System.Text.Json, `[GeneratedRegex]`, `[LoggerMessage]`, `[JsonSerializable]`, Options validation); results are fast, trimmer-safe and debuggable. **Roslyn analyzers and code fixes** report diagnostics (and offer fixes) for rule violations in the IDE and build - style, security, API misuse; ship them as NuGet packages and set severity in `.editorconfig`. Rule: if the set of types is known at compile time prefer a generator; use reflection only for truly dynamic discovery; use analyzers to enforce team rules.
+
+Real-world example: an attribute-driven registration done by reflection once at startup, and the generator-based alternative.
+
+```csharp
+// reflection: discover handlers once at startup and cache them (not per call)
+var handlerTypes = typeof(Program).Assembly.GetTypes()
+    .Where(t => !t.IsAbstract && t.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEventHandler<>)));
+foreach (var t in handlerTypes)
+    foreach (var i in t.GetInterfaces().Where(i => i.IsGenericType))
+        services.AddScoped(i, t);
+
+// source-generated alternative: no runtime scanning, AOT safe
+[LoggerMessage(Level = LogLevel.Information, Message = "Order {OrderId} shipped")]
+static partial void LogShipped(ILogger logger, Guid orderId);
+```
+
+**Keywords:** `reflection, attributes, source generators, IIncrementalGenerator, Roslyn analyzers, editorconfig, trimming, Native AOT`
+
+**Follow-ups:**
+
+-   Why is reflection a problem for Native AOT?
+-   What does an incremental generator do that an older ISourceGenerator did not?
+-   How would you enforce a team rule with an analyzer?
+
+## dn-runtime-005 --- How do global.json, runtimeconfig.json and roll-forward choose the SDK and runtime that run your app?
+
+**question_id:** `dn-runtime-005`\
+**topic_id:** `dn-runtime`\
+**difficulty:** `Senior`\
+**question_type:** `Practical`
+
+**Question**
+
+How do global.json, runtimeconfig.json and roll-forward choose the SDK and runtime that run your app?
+
+**Answer**
+
+Two separate selections happen. The **SDK** used by `dotnet build` comes from `global.json` (`sdk.version`, `rollForward` such as `latestFeature`/`latestPatch`/`disable`, `allowPrerelease`) searched upward from the current folder; without it the latest installed SDK is used. The **runtime** is chosen at launch from `[app].runtimeconfig.json`: the app's target framework (`net10.0` -> `Microsoft.NETCore.App 10.0.0`) plus a **roll-forward policy** (`Minor` default: use the lowest installed higher minor/patch; `Major`, `LatestMajor`, `LatestPatch`, `Disable`). Settings also live there: `System.GC.Server`, `System.GC.Concurrent`, thread-pool limits, `System.Globalization.Invariant`, `TieredPGO`, which you can override via environment variables (`DOTNET_gcServer=1`) or MSBuild properties. Frameworks resolve from the machine's shared runtime (framework-dependent) or are bundled (self-contained). Pin the SDK for reproducible builds; in containers pin the runtime image tag; use `DOTNET_ROLL_FORWARD` carefully because silently running on a newer major hides compatibility bugs.
+
+Real-world example: pinning the SDK and tuning the GC through the project file.
+
+```json
+// global.json
+{ "sdk": { "version": "10.0.100", "rollForward": "latestFeature", "allowPrerelease": false } }
+
+// Shop.Api.runtimeconfig.json (generated from the csproj: <ServerGarbageCollector>, <ConcurrentGarbageCollection>, <RollForward>)
+{
+  "runtimeOptions": {
+    "tfm": "net10.0",
+    "rollForward": "Minor",
+    "framework": { "name": "Microsoft.NETCore.App", "version": "10.0.0" },
+    "configProperties": {
+      "System.GC.Server": true,
+      "System.GC.Concurrent": false,
+      "System.Runtime.TieredPGO": true
+    }
+  }
+}
+```
+
+**Keywords:** `global.json, runtimeconfig.json, roll-forward, SDK selection, shared framework, GC settings, DOTNET environment variables`
+
+**Follow-ups:**
+
+-   Why can an app run on a different runtime minor than the one it was built against?
+-   How do you check which SDKs and runtimes are installed?
+-   Where would you set Server GC for a container?
 
 # TOPIC --- Hosting, Configuration, Logging and Caching
 **topic_id:** `dn-hosting`
@@ -815,6 +1062,134 @@ cts.CancelAfter(TimeSpan.FromSeconds(10));
 -   How does a client disconnect cancel database work?
 -   What is the danger of `async void`?
 
+## dn-io-004 --- When do you use PLINQ, Parallel.For and Parallel.ForEachAsync, and when is parallelism harmful?
+
+**question_id:** `dn-io-004`\
+**topic_id:** `dn-io`\
+**difficulty:** `Senior`\
+**question_type:** `Practical / Comparison`
+
+**Question**
+
+When do you use PLINQ, Parallel.For and Parallel.ForEachAsync, and when is parallelism harmful?
+
+**Answer**
+
+Parallelism helps **CPU-bound** work that can be partitioned independently. `Parallel.For/ForEach` split loops across thread-pool threads (use `ParallelOptions.MaxDegreeOfParallelism` and thread-local state to avoid contention); **PLINQ** (`AsParallel()`) parallelises LINQ queries, with `AsOrdered()` if order matters (slower), `WithDegreeOfParallelism`, `WithCancellation` and aggregation via `Aggregate` with per-partition accumulators. For **I/O-bound** async work use `Parallel.ForEachAsync` (bounded concurrency) or `Task.WhenAll` with a `SemaphoreSlim`, not threads blocking. It is harmful when the work is tiny (partitioning overhead dominates), when it shares mutable state behind locks (contention), when it runs inside an ASP.NET request (starving the pool that serves other requests), or against a limited downstream (database, API quotas). Always measure with a realistic input size, avoid side effects inside PLINQ lambdas, and handle `AggregateException`.
+
+Real-world example: CPU-bound image hashing in parallel versus bounded async downloads.
+
+```csharp
+// CPU-bound: PLINQ with a bounded degree of parallelism
+var hashes = files.AsParallel().WithDegreeOfParallelism(Environment.ProcessorCount)
+    .Select(f => (f, Hash: Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(f)))))
+    .ToDictionary(x => x.f, x => x.Hash);
+
+// I/O-bound: bounded async concurrency
+await Parallel.ForEachAsync(urls, new ParallelOptions { MaxDegreeOfParallelism = 8, CancellationToken = ct },
+    async (url, token) =>
+    {
+        var bytes = await http.GetByteArrayAsync(url, token);
+        await File.WriteAllBytesAsync(Path.Combine(dir, Path.GetFileName(url)), bytes, token);
+    });
+```
+
+**Keywords:** `PLINQ, Parallel.For, Parallel.ForEachAsync, MaxDegreeOfParallelism, CPU-bound, I/O-bound, partitioning, contention`
+
+**Follow-ups:**
+
+-   Why can PLINQ be slower than a plain loop?
+-   How do you limit parallel calls to a rate-limited API?
+-   Why is Parallel.For inside a web request risky?
+
+## dn-io-005 --- How do WebSockets, HTTP/2 and HTTP/3 (QUIC) differ, and how do you use them in .NET?
+
+**question_id:** `dn-io-005`\
+**topic_id:** `dn-io`\
+**difficulty:** `Senior`\
+**question_type:** `Conceptual / Practical`
+
+**Question**
+
+How do WebSockets, HTTP/2 and HTTP/3 (QUIC) differ, and how do you use them in .NET?
+
+**Answer**
+
+**WebSockets** upgrade an HTTP connection to a full-duplex, message-based channel for real-time two-way traffic (chat, live data); in .NET use `ClientWebSocket` and ASP.NET Core `app.UseWebSockets()`/`context.WebSockets`, or the higher-level **SignalR** which adds hubs, groups, reconnection and fallbacks. **HTTP/2** multiplexes many request/response streams on one TCP connection with header compression (gRPC depends on it); head-of-line blocking still occurs at the TCP level. **HTTP/3** runs over **QUIC** (UDP): per-stream loss recovery (no TCP head-of-line blocking), faster handshakes (0/1-RTT), connection migration across networks. .NET supports HTTP/3 in `HttpClient` (`DefaultRequestVersion`, `HttpVersionPolicy.RequestVersionOrHigher`) and Kestrel (`ListenOptions.Protocols = Http1AndHttp2AndHttp3`), requiring TLS and OS QUIC support (msquic/libmsquic). Remember scale-out issues: WebSocket connections are stateful (sticky routing or a backplane such as Redis/Azure SignalR) and need idle timeouts and heartbeats.
+
+Real-world example: enabling HTTP/3 on Kestrel and calling it from HttpClient.
+
+```csharp
+builder.WebHost.ConfigureKestrel(k => k.ListenAnyIP(5001, o =>
+{
+    o.Protocols = HttpProtocols.Http1AndHttp2AndHttp3;
+    o.UseHttps();
+}));
+
+var http = new HttpClient
+{
+    DefaultRequestVersion = HttpVersion.Version30,
+    DefaultVersionPolicy = HttpVersionPolicy.RequestVersionOrLower   // fall back to 2/1.1 when QUIC is unavailable
+};
+
+app.UseWebSockets();
+app.Map("/ws", async ctx =>
+{
+    using var ws = await ctx.WebSockets.AcceptWebSocketAsync();
+    var buffer = new byte[4096];
+    var r = await ws.ReceiveAsync(buffer, ctx.RequestAborted);
+    await ws.SendAsync(buffer.AsMemory(0, r.Count), r.MessageType, r.EndOfMessage, ctx.RequestAborted);
+});
+```
+
+**Keywords:** `WebSockets, HTTP/2, HTTP/3, QUIC, SignalR, Kestrel, head-of-line blocking, multiplexing`
+
+**Follow-ups:**
+
+-   What problem does QUIC solve that HTTP/2 over TCP does not?
+-   How do you scale WebSocket connections across instances?
+-   When would you choose SignalR over raw WebSockets?
+
+## dn-io-006 --- How does System.Threading.RateLimiting work and how does ASP.NET Core use it?
+
+**question_id:** `dn-io-006`\
+**topic_id:** `dn-io`\
+**difficulty:** `Senior`\
+**question_type:** `Practical`
+
+**Question**
+
+How does System.Threading.RateLimiting work and how does ASP.NET Core use it?
+
+**Answer**
+
+`System.Threading.RateLimiting` offers four limiters: **fixed window** (N permits per window, simple, burst at the boundary), **sliding window** (smoother, segments), **token bucket** (refills at a rate, allows controlled bursts) and **concurrency limiter** (max in-flight operations, with an optional queue). A limiter hands out `RateLimitLease`s; `PartitionedRateLimiter` keys limits per user, IP, tenant or API key. ASP.NET Core wraps it in the **rate limiting middleware** (`AddRateLimiter`, `UseRateLimiter`, `RequireRateLimiting`/`[EnableRateLimiting]`), returning 429 with `Retry-After` and a rejection callback. The same limiters protect outbound calls (e.g. in an `HttpClient` handler or the resilience pipeline) so you respect a vendor's quota. Remember limits are per instance (in-memory); for global limits across instances use a gateway (APIM/YARP/Front Door) or a distributed counter. Always partition (a global limit lets one noisy client starve everyone), expose limits in headers and monitor rejections.
+
+Real-world example: a per-user token-bucket policy plus a global concurrency cap.
+
+```csharp
+builder.Services.AddRateLimiter(o =>
+{
+    o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    o.AddPolicy("per-user", ctx => RateLimitPartition.GetTokenBucketLimiter(
+        ctx.User.Identity?.Name ?? ctx.Connection.RemoteIpAddress?.ToString() ?? "anon",
+        _ => new TokenBucketRateLimiterOptions { TokenLimit = 20, TokensPerPeriod = 10, ReplenishmentPeriod = TimeSpan.FromSeconds(1), QueueLimit = 0 }));
+    o.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(_ =>
+        RateLimitPartition.GetConcurrencyLimiter("all", _ => new ConcurrencyLimiterOptions { PermitLimit = 200, QueueLimit = 50 }));
+    o.OnRejected = (c, _) => { c.HttpContext.Response.Headers.RetryAfter = "1"; return ValueTask.CompletedTask; };
+});
+app.UseRateLimiter();
+app.MapGet("/search", () => "ok").RequireRateLimiting("per-user");
+```
+
+**Keywords:** `rate limiting, token bucket, fixed window, sliding window, concurrency limiter, PartitionedRateLimiter, 429, Retry-After`
+
+**Follow-ups:**
+
+-   Token bucket versus fixed window: which handles bursts better?
+-   Why are in-memory limits not enough behind several instances?
+-   How do you rate limit an outbound HttpClient?
+
 # TOPIC --- SDK, Tooling and Diagnostics
 **topic_id:** `dn-tooling`
 **priority:** `Strong`
@@ -963,6 +1338,86 @@ builder.Services.AddOpenTelemetry()
 -   How does trace context flow through a message queue?
 -   When do you use a histogram instead of a counter?
 
+## dn-tooling-004 --- How do you use NuGet private feeds, package source mapping and Azure Artifacts securely?
+
+**question_id:** `dn-tooling-004`\
+**topic_id:** `dn-tooling`\
+**difficulty:** `Senior`\
+**question_type:** `Practical`
+
+**Question**
+
+How do you use NuGet private feeds, package source mapping and Azure Artifacts securely?
+
+**Answer**
+
+A **feed** is a NuGet source (nuget.org, Azure Artifacts, GitHub Packages, Artifactory, a file share). Configure sources in `nuget.config` (solution-level, committed), with credentials from environment variables or a credential provider - never commit tokens. Risks: **dependency confusion** (an attacker publishes a public package with your internal package's name and a higher version) - mitigate with **package source mapping** (`packageSourceMapping`: `Shop.*` only from the private feed, everything else from nuget.org), reserved prefixes, lock files (`packages.lock.json` with `--locked-mode`), central package management and vulnerability auditing (`dotnet list package --vulnerable`, `NuGetAudit`). Azure Artifacts **upstream sources** proxy and cache nuget.org so builds survive outages and you can block bad versions. In CI authenticate with `NuGetAuthenticate`/managed identity or a federated credential, push versioned packages from the pipeline, and keep a symbol server. Prefer immutable versions and SemVer pre-releases for CI builds.
+
+Real-world example: a nuget.config that maps internal packages to the private feed.
+
+```xml
+<configuration>
+  <packageSources>
+    <clear />
+    <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
+    <add key="shop-internal" value="https://pkgs.dev.azure.com/shop/_packaging/shop/nuget/v3/index.json" />
+  </packageSources>
+  <packageSourceMapping>
+    <packageSource key="shop-internal"><package pattern="Shop.*" /></packageSource>
+    <packageSource key="nuget.org"><package pattern="*" /></packageSource>
+  </packageSourceMapping>
+  <auditSources><add key="nuget.org" /></auditSources>
+</configuration>
+```
+
+**Keywords:** `NuGet, private feed, package source mapping, dependency confusion, Azure Artifacts, lock file, NuGetAudit, upstream sources`
+
+**Follow-ups:**
+
+-   What is a dependency confusion attack?
+-   How do upstream sources help when nuget.org is down?
+-   How do you authenticate to a private feed from CI without a stored password?
+
+## dn-tooling-005 --- How do xUnit, MSTest and NUnit compare, and how do you measure code coverage in .NET?
+
+**question_id:** `dn-tooling-005`\
+**topic_id:** `dn-tooling`\
+**difficulty:** `Intermediate`\
+**question_type:** `Comparison / Practical`
+
+**Question**
+
+How do xUnit, MSTest and NUnit compare, and how do you measure code coverage in .NET?
+
+**Answer**
+
+All three are mature and run with `dotnet test` and Test Explorer. **xUnit**: constructor per test (new instance each test, so no shared state by default), `IClassFixture<T>`/`ICollectionFixture` for shared setup, `[Fact]`, `[Theory]` + `[InlineData]/[MemberData]`, parallel by collection; favoured by the .NET team and the ecosystem. **NUnit**: attribute-rich (`[SetUp]`, `[TestCase]`, constraint model `Assert.That`), parameterised tests, popular in older code. **MSTest**: Microsoft's framework (`[TestMethod]`, `[DataRow]`, `[TestInitialize]`), integrated with Visual Studio; v3/v4 modernised. Choose one per solution and add **Microsoft.Testing.Platform** support (the new lightweight runner). Add a mocking library (NSubstitute/Moq), FluentAssertions-style asserts, `WebApplicationFactory`, Testcontainers. **Coverage**: `coverlet.collector` (`--collect:"XPlat Code Coverage"`) or `dotnet-coverage`, rendered by ReportGenerator in CI; use coverage to find untested code, not as a target to game - combine with mutation testing (Stryker.NET) for assertion quality, and set a sane gate on changed code.
+
+Real-world example: a theory test and the coverage command used in CI.
+
+```csharp
+public class PricingTests
+{
+    [Theory]
+    [InlineData(100, 0.10, 90)]
+    [InlineData(100, 0.00, 100)]
+    [InlineData(59.99, 0.50, 30.00)]
+    public void Discount_is_applied(decimal price, decimal rate, decimal expected) =>
+        Assert.Equal(expected, new PricingService().ApplyDiscount(price, rate), precision: 2);
+}
+// CI:
+// dotnet test --collect:"XPlat Code Coverage" --results-directory ./coverage
+// reportgenerator -reports:"coverage/**/coverage.cobertura.xml" -targetdir:coverage/report -reporttypes:HtmlInline_AzurePipelines
+```
+
+**Keywords:** `xUnit, MSTest, NUnit, code coverage, coverlet, Microsoft.Testing.Platform, mutation testing, Theory`
+
+**Follow-ups:**
+
+-   Why does xUnit create a new class instance per test?
+-   What does mutation testing reveal that line coverage does not?
+-   How do you share an expensive fixture between tests?
+
 # TOPIC --- Modern C# 14 and .NET 10 Features
 **topic_id:** `dn-modern`
 **priority:** `Strong`
@@ -1104,3 +1559,48 @@ public static string Hash(ReadOnlySpan<byte> data)
 -   How do you convince stakeholders to schedule a runtime upgrade?
 -   What would you verify first in the breaking-changes list for a web API?
 -   How do you keep libraries compatible with several .NET versions?
+
+## dn-modern-004 --- How do records, pattern matching, primary constructors, collection expressions and nullable reference types change everyday C#?
+
+**question_id:** `dn-modern-004`\
+**topic_id:** `dn-modern`\
+**difficulty:** `Intermediate`\
+**question_type:** `Practical`
+
+**Question**
+
+How do records, pattern matching, primary constructors, collection expressions and nullable reference types change everyday C#?
+
+**Answer**
+
+**Records** give concise immutable types with value equality, `with` copies and deconstruction (`record` for DTOs/value objects, `record struct` for small values). **Pattern matching** (`is`, `switch` expressions with type, property, relational, list and `and/or/not` patterns) replaces long if/else and casting chains and lets the compiler check exhaustiveness. **Primary constructors** (C# 12) put parameters on classes/structs, captured as fields - ideal for DI (`class Svc(IRepo repo)`), but captured parameters are mutable fields and not readonly, so copy to readonly fields when it matters. **Collection expressions** (`[1, 2, ..other]`) create arrays, lists and spans with spread, using the target type. **Nullable reference types** (`<Nullable>enable</Nullable>`) make nullability part of the type system: `string` is non-null, `string?` may be null, with flow analysis, `[NotNullWhen]` attributes and the null-forgiving `!` as a last resort. Treat nullable warnings as errors in new code, and combine with `required` members and `init` setters for safe construction.
+
+Real-world example: a switch expression over a record hierarchy with a nullable-aware result.
+
+```csharp
+public abstract record Shipment(string Id);
+public sealed record Parcel(string Id, decimal WeightKg, string Country) : Shipment(Id);
+public sealed record Pallet(string Id, int Units) : Shipment(Id);
+
+public sealed class ShippingCalculator(IRateTable rates)               // primary constructor
+{
+    public decimal Cost(Shipment s) => s switch
+    {
+        Parcel { WeightKg: <= 1 } => 4.50m,
+        Parcel { Country: "US" or "CA", WeightKg: var w } => rates.Domestic * w,
+        Parcel p => rates.International * p.WeightKg,
+        Pallet { Units: > 20 } => 250m,
+        Pallet pl => 12m * pl.Units,
+        _ => throw new ArgumentOutOfRangeException(nameof(s))
+    };
+}
+List<string> tags = ["new", .. existingTags, "eu"];                     // collection expression with spread
+```
+
+**Keywords:** `records, pattern matching, primary constructors, collection expressions, nullable reference types, switch expression, required members`
+
+**Follow-ups:**
+
+-   What does a primary-constructor parameter compile to?
+-   How do record equality and with-expressions work for reference-type members?
+-   How do you migrate a large code base to nullable reference types gradually?

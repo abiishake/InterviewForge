@@ -441,6 +441,47 @@ await processor.StartProcessingAsync();
 -   What data is reprocessed after a crash and how do you handle it?
 -   How do you preserve per-device ordering?
 
+## azd-messaging-004 --- How do Azure Storage Queues and Event Grid work in detail, and when do they beat Service Bus?
+
+**question_id:** `azd-messaging-004`\
+**topic_id:** `azd-messaging`\
+**difficulty:** `Senior`\
+**question_type:** `Comparison / Practical`
+
+**Question**
+
+How do Azure Storage Queues and Event Grid work in detail, and when do they beat Service Bus?
+
+**Answer**
+
+**Storage Queues** are a simple, cheap, massive queue (up to 200 TB per account, 64 KB messages, ~7-day default TTL) with at-least-once delivery, a **visibility timeout** instead of locks, `DequeueCount` for poison handling (you move poison messages to your own poison queue), HTTP access and no ordering, topics, sessions, duplicate detection or dead-lettering. Pick them for high-volume, low-complexity work where cost matters and Service Bus features are unnecessary. **Event Grid** is a fully managed **event routing** service: sources (Blob Storage, resource events, custom topics, partner events) publish events; subscriptions filter (subject/type/advanced filters) and **push** to handlers (Functions, Service Bus, Event Hubs, webhooks) with retry, exponential backoff and dead-lettering to a blob container. Events are lightweight notifications (what happened, not the data), delivered at-least-once, **order not guaranteed**; webhook endpoints must complete the validation handshake. Choose Event Grid for reactive fan-out to Azure events, Storage Queues for cheap work queues, Service Bus when you need ordering, transactions, DLQ per entity and rich semantics.
+
+Real-world example: a Storage Queue consumer with a poison queue, and an Event Grid subscription filtered to PDF uploads.
+
+```csharp
+var queue = new QueueClient(new Uri("https://shopstore.queue.core.windows.net/thumbnails"), credential);
+var poison = new QueueClient(new Uri("https://shopstore.queue.core.windows.net/thumbnails-poison"), credential);
+
+foreach (var msg in (await queue.ReceiveMessagesAsync(maxMessages: 16, visibilityTimeout: TimeSpan.FromMinutes(2), ct)).Value)
+{
+    try { await handler.HandleAsync(msg.Body.ToObjectFromJson<ThumbnailJob>(), ct); await queue.DeleteMessageAsync(msg.MessageId, msg.PopReceipt, ct); }
+    catch when (msg.DequeueCount >= 5)
+    {
+        await poison.SendMessageAsync(msg.Body, cancellationToken: ct);          // your own dead-letter
+        await queue.DeleteMessageAsync(msg.MessageId, msg.PopReceipt, ct);
+    }
+}
+// az eventgrid system-topic event-subscription create --name pdf-created --system-topic-name shop-blob //   -g rg --endpoint-type servicebusqueue --endpoint $QUEUE_ID --included-event-types Microsoft.Storage.BlobCreated --subject-ends-with .pdf
+```
+
+**Keywords:** `Storage Queue, Event Grid, visibility timeout, DequeueCount, poison queue, event subscription, dead-letter, at-least-once`
+
+**Follow-ups:**
+
+-   What is a visibility timeout and how does it differ from a Service Bus lock?
+-   Why does Event Grid not guarantee order?
+-   How do you handle poison messages in Storage Queues?
+
 # TOPIC --- Configuration, Aspire and azd Deployment
 **topic_id:** `azd-deploy`
 **priority:** `Strong`
@@ -680,6 +721,82 @@ Real-world example: a YARP strangler proxy routing migrated paths to the new app
 -   How do you share authentication between the old and new app during coexistence?
 -   Which parts do you migrate first and why?
 -   How do you keep the team shipping features during the migration?
+
+## azd-migrate-004 --- Which Azure SQL deployment option and migration tool do you choose for a SQL Server database?
+
+**question_id:** `azd-migrate-004`\
+**topic_id:** `azd-migrate`\
+**difficulty:** `Senior`\
+**question_type:** `Comparison / Practical`
+
+**Question**
+
+Which Azure SQL deployment option and migration tool do you choose for a SQL Server database?
+
+**Answer**
+
+Options: **Azure SQL Database** (PaaS, single database or elastic pool; serverless and Hyperscale tiers; best for new/cloud-ready apps; no SQL Agent, limited cross-database queries), **Azure SQL Managed Instance** (near-100% SQL Server compatibility: SQL Agent, cross-database queries, linked servers, CLR, Service Broker; VNet-injected; the usual target for lift-and-modernise) and **SQL Server on Azure VM** (full control, OS access, unsupported features, third-party agents; you patch and back up). Assess with the **Azure Data Studio/Azure Migrate DMA-style assessments** (compatibility issues, feature parity, SKU recommendation), then migrate: **Azure Database Migration Service** (offline or **online** with continuous sync and a short cutover; log shipping/Managed Link for MI), backup/restore to MI via blob, or BACPAC for small databases. Plan: schema and logins/users mapping, Entra ID authentication, connectivity (private endpoint/VNet), performance baselines, compatibility level, cutover and rollback, and cost (reserved capacity, hybrid benefit). Re-test queries - cardinality estimation and plans can change.
+
+Real-world example: choosing a target and running an online migration with DMS.
+
+```bash
+# 1. assess: compatibility blockers and SKU recommendation (Azure Migrate / Azure Data Studio Azure SQL Migration extension)
+# 2. create target
+az sql midb create -g rg-shop --managed-instance shop-mi -n ShopDb
+
+# 3. online migration (continuous sync) with Database Migration Service
+az datamigration sql-managed-instance create -g rg-shop --managed-instance-name shop-mi \
+  --target-db-name ShopDb --migration-service $DMS_ID \
+  --source-database-name ShopDb --source-sql-connection authentication=SqlAuthentication data-source=onprem-sql user-name=migrator password=$SRC_PWD \
+  --scope $MI_ID --offline-configuration last-backup-name=ShopDb_full.bak
+# 4. cutover: stop writes, apply last log backup, switch connection string, keep source read-only for rollback
+```
+
+**Keywords:** `Azure SQL Database, Managed Instance, SQL on VM, Database Migration Service, online migration, compatibility, cutover, BACPAC`
+
+**Follow-ups:**
+
+-   Why is Managed Instance often easier for legacy SQL Server databases?
+-   How does an online migration reduce downtime?
+-   What can change in query performance after migrating?
+
+## azd-migrate-005 --- How do you move an ASP.NET Framework application to App Service or Windows containers?
+
+**question_id:** `azd-migrate-005`\
+**topic_id:** `azd-migrate`\
+**difficulty:** `Senior`\
+**question_type:** `Scenario / Practical`
+
+**Question**
+
+How do you move an ASP.NET Framework application to App Service or Windows containers?
+
+**Answer**
+
+Choose by how much the app depends on the machine. **App Service (Windows)** hosts .NET Framework 4.x on IIS as PaaS: fastest, with autoscale, slots and managed patching; use the **App Service Migration Assistant** (assess + migrate) and fix blockers - unsupported Windows features (GAC assemblies, COM, MSMQ, custom Windows services, registry/machine-level installs), local file state, Windows authentication to AD (use Entra ID/App Proxy/hybrid), `machineKey` and session state (move to Redis/SQL), config transforms and SMTP. **Windows containers** (IIS or ASP.NET base images on Azure Container Apps/AKS Windows nodes/VMs) fit apps needing installers, custom IIS modules or specific system dependencies: containerise with a Dockerfile based on `mcr.microsoft.com/dotnet/framework/aspnet`, externalise config and secrets, and use a registry. Both are *replatform* steps; modernise to .NET afterwards (strangler pattern). Validate with AppCAT first, plan connectivity to on-prem (VPN/ExpressRoute), health probes, logging to Application Insights and a rollback plan.
+
+Real-world example: a Dockerfile for a legacy ASP.NET app and moving session state out of process.
+
+```dockerfile
+FROM mcr.microsoft.com/dotnet/framework/sdk:4.8 AS build
+WORKDIR /src
+COPY . .
+RUN nuget restore Shop.sln && msbuild Shop.Web/Shop.Web.csproj /p:Configuration=Release /p:DeployOnBuild=true /p:PublishUrl=C:\out
+
+FROM mcr.microsoft.com/dotnet/framework/aspnet:4.8-windowsservercore-ltsc2022
+WORKDIR /inetpub/wwwroot
+COPY --from=build C:/out/ .
+# config via environment variables / mounted secrets, not baked into web.config
+# web.config: <sessionState mode="Custom" customProvider="Redis"> to survive scale-out
+```
+
+**Keywords:** `ASP.NET Framework, App Service, Windows containers, Migration Assistant, session state, machineKey, replatform, IIS`
+
+**Follow-ups:**
+
+-   Which features block a move to App Service?
+-   How do you handle Windows authentication after the move?
+-   When is a Windows container better than App Service for a legacy app?
 
 # TOPIC --- Azure AI Services for .NET
 **topic_id:** `azd-ai`

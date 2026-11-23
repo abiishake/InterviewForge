@@ -413,6 +413,51 @@ public sealed record OrderSummary(int OrderNumber, DateTime Date, string Status,
 -   Why should queries bypass aggregates?
 -   How do you keep a read model in sync with the write model?
 
+## arch-ddd-005 --- How do you use NoSQL (document databases) as persistence infrastructure for a DDD microservice?
+
+**question_id:** `arch-ddd-005`\
+**topic_id:** `arch-ddd`\
+**difficulty:** `Senior`\
+**question_type:** `Design / Practical`
+
+**Question**
+
+How do you use NoSQL (document databases) as persistence infrastructure for a DDD microservice?
+
+**Answer**
+
+A **document database** (Cosmos DB, MongoDB) fits an **aggregate** well: the aggregate root and its owned entities/value objects are stored as one JSON document, loaded and saved atomically, so the aggregate boundary equals the transaction boundary (single-document operations are atomic, multi-document usually not). Benefits: schema flexibility, no impedance mismatch, denormalised reads, horizontal scale by **partition key**. Design rules: model documents around access patterns, pick a partition key with high cardinality that appears in most queries (for example `/customerId` or `/tenantId`), keep documents bounded (do not embed unbounded lists), use ETag/optimistic concurrency, keep the repository interface unchanged so the domain stays persistence-ignorant, and publish integration events with a transactional outbox or the **change feed** (Cosmos) to update read models and other services. Trade-offs: no joins or cross-document transactions, duplicated data to keep consistent, and cost driven by RU consumption - so use it where relational features are not needed, or combine (polyglot persistence: SQL for orders, Cosmos for catalog or sessions).
+
+Real-world example: an aggregate repository over Cosmos DB with optimistic concurrency.
+
+```csharp
+public sealed class BasketRepository(Container container) : IBasketRepository
+{
+    public async Task<Basket?> GetAsync(string customerId, CancellationToken ct)
+    {
+        try
+        {
+            var r = await container.ReadItemAsync<BasketDocument>(customerId, new PartitionKey(customerId), cancellationToken: ct);
+            return r.Resource.ToDomain(r.ETag);
+        }
+        catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.NotFound) { return null; }
+    }
+
+    public Task SaveAsync(Basket basket, CancellationToken ct) =>
+        container.UpsertItemAsync(BasketDocument.From(basket), new PartitionKey(basket.CustomerId),
+            new ItemRequestOptions { IfMatchEtag = basket.ETag },   // optimistic concurrency: 412 if changed meanwhile
+            ct);
+}
+```
+
+**Keywords:** `NoSQL, document database, Cosmos DB, aggregate, partition key, change feed, optimistic concurrency, polyglot persistence`
+
+**Follow-ups:**
+
+-   How do you choose a partition key for an aggregate document?
+-   How do you keep other services updated when an aggregate document changes?
+-   When would you keep an aggregate in a relational database instead?
+
 # TOPIC --- Cloud-Native Architecture on Azure
 **topic_id:** `arch-cloud`
 **priority:** `Core`
@@ -642,6 +687,82 @@ jobs:
 -   How does OIDC federation remove stored deployment secrets?
 -   Which SLOs would you alert on for an order API?
 -   How do feature flags help decouple deployment from release?
+
+## arch-cloud-006 --- How do you build observability for cloud-native apps with Azure Monitor, Elastic Stack and AKS monitoring?
+
+**question_id:** `arch-cloud-006`\
+**topic_id:** `arch-cloud`\
+**difficulty:** `Senior`\
+**question_type:** `Design / Practical`
+
+**Question**
+
+How do you build observability for cloud-native apps with Azure Monitor, Elastic Stack and AKS monitoring?
+
+**Answer**
+
+Observability = logs, metrics and traces correlated by trace id. On Azure the default is **Azure Monitor**: **Application Insights** (OpenTelemetry-based distributed tracing, dependency maps, live metrics) and **Log Analytics** workspaces queried with KQL; for AKS enable **Container insights** (node/pod metrics, container logs), **Managed Prometheus** and **Managed Grafana** for Kubernetes and app metrics, plus alerts and workbooks. The **Elastic Stack** (Elasticsearch, Logstash/Beats/Elastic Agent, Kibana; or Serilog sinks) is a common self-managed or Elastic Cloud alternative with powerful full-text log search - the cloud-native e-book uses it for centralised logging. Principles are the same: emit **structured logs** to stdout (the platform collects them), use OpenTelemetry exporters (OTLP) so the backend is swappable, propagate W3C trace context across services and queues, define **SLOs/SLIs** and alert on symptoms (error rate, latency percentiles) rather than every cause, add health probes, control volume/cost (sampling, retention tiers) and protect PII in telemetry.
+
+Real-world example: OpenTelemetry in a service exporting to Azure Monitor, and a KQL query for slow requests.
+
+```csharp
+builder.Services.AddOpenTelemetry()
+    .UseAzureMonitor()                                  // Application Insights via OpenTelemetry (Azure.Monitor.OpenTelemetry.AspNetCore)
+    .WithTracing(t => t.AddSource("Shop.Orders"))
+    .WithMetrics(m => m.AddMeter("Shop.Orders"));
+
+builder.Logging.AddJsonConsole();                       // structured logs to stdout; the platform ships them
+
+// KQL (Log Analytics): p95 latency by operation over the last hour
+// requests | where timestamp > ago(1h)
+// | summarize p95=percentile(duration, 95), failures=countif(success == false) by name
+// | order by p95 desc
+```
+
+**Keywords:** `observability, Azure Monitor, Application Insights, Container insights, Prometheus, Grafana, Elastic Stack, KQL, OpenTelemetry`
+
+**Follow-ups:**
+
+-   Why prefer OpenTelemetry exporters over a vendor SDK?
+-   What would you alert on for an order API?
+-   How do you control telemetry cost?
+
+## arch-cloud-007 --- What are Helm charts and Cloud Native Application Bundles (CNAB), and how do you package and deploy a multi-service app?
+
+**question_id:** `arch-cloud-007`\
+**topic_id:** `arch-cloud`\
+**difficulty:** `Intermediate`\
+**question_type:** `Conceptual / Practical`
+
+**Question**
+
+What are Helm charts and Cloud Native Application Bundles (CNAB), and how do you package and deploy a multi-service app?
+
+**Answer**
+
+Deploying a distributed app means many artifacts: container images, Kubernetes manifests, config, secrets, cloud resources. **Helm** is the Kubernetes package manager: a **chart** templates manifests with values per environment (`values-prod.yaml`), supports releases, upgrades and **rollbacks** (`helm upgrade --install`, `helm rollback`), dependencies and OCI registries (store charts in ACR). **Cloud Native Application Bundles (CNAB)** is a spec for packaging an application **together with its deployment tooling and infrastructure** (images, Helm charts, ARM/Bicep, scripts) into one signed, versioned bundle with install/upgrade/uninstall actions and parameters/credentials - tools such as Porter implement it; the cloud-native e-book presents it for repeatable, portable delivery. In practice many teams now use Helm or Kustomize plus Bicep/Terraform driven by a GitOps tool (Flux, Argo CD) or `azd`; the principles remain: immutable, versioned artifacts, environment config separated from code, automated and repeatable releases with rollback.
+
+Real-world example: installing a chart from ACR with environment-specific values.
+
+```bash
+helm registry login shopacr.azurecr.io --username $ACR_USER --password $ACR_PASSWORD
+helm package charts/shop --version 1.8.2 && helm push shop-1.8.2.tgz oci://shopacr.azurecr.io/helm
+
+helm upgrade --install shop oci://shopacr.azurecr.io/helm/shop --version 1.8.2 \
+  --namespace shop --create-namespace -f values-prod.yaml \
+  --set orders.image.tag=1.8.2 --atomic --timeout 5m     # roll back automatically on failure
+
+helm history shop -n shop
+helm rollback shop 7 -n shop
+```
+
+**Keywords:** `Helm, CNAB, Porter, Kubernetes packaging, GitOps, Kustomize, rollback, OCI registry`
+
+**Follow-ups:**
+
+-   What does --atomic do during an upgrade?
+-   How does GitOps differ from running helm from a pipeline?
+-   Where do secrets belong when using Helm values?
 
 # TOPIC --- Modern Web App Architecture
 **topic_id:** `arch-web`
@@ -1027,6 +1148,53 @@ builder.Services.AddHttpClient<IOrderApi, OrderApi>().AddStandardResilienceHandl
 -   How does MVVM make view logic unit-testable?
 -   How would you synchronise offline changes and resolve conflicts?
 -   Where do you store tokens on a mobile device?
+
+## arch-client-004 --- How do you design offline sync and conflict resolution for a .NET MAUI app?
+
+**question_id:** `arch-client-004`\
+**topic_id:** `arch-client`\
+**difficulty:** `Senior`\
+**question_type:** `Design / Scenario`
+
+**Question**
+
+How do you design offline sync and conflict resolution for a .NET MAUI app?
+
+**Answer**
+
+Offline-first means the app works against a **local SQLite store** and syncs when connectivity returns. Design: every write goes to the local DB and an **outbox/operation queue** (operation type, entity id, payload, client timestamp, idempotency key); a sync service (triggered by connectivity changes, app resume and background tasks) **pushes** the queue in order with retries and backoff, then **pulls** changes since the last **sync token/delta link** (server returns changes and tombstones for deletes). Give entities stable client-generated ids (GUIDs), server version/ETag and a `rowVersion`. **Conflict resolution** options: last-write-wins (simple, loses data), server-wins, field-level merge, or surface the conflict to the user; choose per entity - for example last-write-wins for preferences, merge or prompt for orders. Make server endpoints **idempotent** (dedupe by key), handle partial failure per operation, keep payloads small (paging, compression), encrypt the local DB for sensitive data and show sync state in the UI. Libraries (Azure Mobile Apps/Datasync Community Toolkit, Couchbase Lite, Realm) provide much of this.
+
+Real-world example: an outbox entry written with the local change and a push loop that treats 409 as a conflict.
+
+```csharp
+public async Task SaveOrderLocallyAsync(Order order)
+{
+    await using var tx = await db.BeginTransactionAsync();
+    await db.UpsertAsync(order);
+    await db.InsertAsync(new OutboxOp { Id = Guid.NewGuid(), Entity = "order", EntityId = order.Id, Payload = JsonSerializer.Serialize(order), CreatedAt = DateTimeOffset.UtcNow });
+    await tx.CommitAsync();
+    syncSignal.Release();                           // wake the sync loop
+}
+
+public async Task PushAsync(CancellationToken ct)
+{
+    foreach (var op in await db.PendingOpsAsync())
+    {
+        var res = await api.PutAsync($"/orders/{op.EntityId}", op, idempotencyKey: op.Id, ifMatch: op.ETag, ct);
+        if (res.StatusCode == HttpStatusCode.Conflict) await conflicts.ResolveAsync(op, await res.ReadServerCopyAsync(ct));
+        else if (res.IsSuccessStatusCode) await db.MarkDoneAsync(op);
+        else break;                                // keep order; retry later with backoff
+    }
+}
+```
+
+**Keywords:** `offline-first, MAUI, SQLite, sync, outbox, conflict resolution, idempotency, delta sync, tombstones`
+
+**Follow-ups:**
+
+-   When is last-write-wins acceptable and when is it dangerous?
+-   How do you sync deletes?
+-   How do you keep the outbox from sending the same operation twice?
 
 # TOPIC --- Design Guidelines for Frameworks and Libraries
 **topic_id:** `arch-guidelines`

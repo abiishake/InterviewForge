@@ -406,6 +406,83 @@ public sealed class ChatSessionService(IDistributedCache cache, IChatClient chat
 -   What are the trade-offs of summarising old messages?
 -   How do you handle two browser tabs posting to one conversation?
 
+## ai-meai-006 --- How do you reduce chat history size (chat reduction) without losing important context?
+
+**question_id:** `ai-meai-006`\
+**topic_id:** `ai-meai`\
+**difficulty:** `Senior`\
+**question_type:** `Practical / Design`
+
+**Question**
+
+How do you reduce chat history size (chat reduction) without losing important context?
+
+**Answer**
+
+Every request resends the history, so long conversations hit the context window and cost. Strategies: **sliding window** (keep system message plus the last N messages/tokens - simple, loses early facts), **summarisation** (periodically ask a cheap model to summarise older turns into one message, keep recent turns verbatim), **selective memory** (extract durable facts - user preferences, entities - into a store and re-inject only relevant ones, often retrieved by embeddings), and **tool-result trimming** (truncate large tool outputs, keep identifiers). `Microsoft.Extensions.AI` includes experimental **chat reduction** components (`IChatReducer` implementations such as message-counting and summarising reducers) that you can plug into a pipeline or call before each request. Rules: never drop the system prompt, keep tool-call/tool-result pairs together (orphaned tool messages cause API errors), preserve the latest user message, count tokens rather than characters, and evaluate quality after reduction because summaries can drop details. Persist the full transcript separately for audit.
+
+Real-world example: a reducer applied before each model call, keeping the system prompt and the newest turns.
+
+```csharp
+IChatReducer reducer = new MessageCountingChatReducer(targetCount: 12);   // experimental API: verify in your package version
+
+public async Task<string> ChatAsync(List<ChatMessage> history, string userText, CancellationToken ct)
+{
+    history.Add(new ChatMessage(ChatRole.User, userText));
+    var window = (await reducer.ReduceAsync(history, ct)).ToList();      // system message kept, tool pairs preserved
+
+    var response = await chat.GetResponseAsync(window, cancellationToken: ct);
+    history.AddMessages(response);                                        // full transcript stays in `history` / the database
+    return response.Text;
+}
+```
+
+**Keywords:** `chat reduction, summarization, sliding window, context window, token budget, memory, IChatReducer`
+
+**Follow-ups:**
+
+-   What breaks when a tool result is trimmed away from its tool call?
+-   How would you detect that summarisation lost an important fact?
+-   Where do long-term user facts belong versus chat history?
+
+## ai-meai-007 --- How do you generate images with Microsoft.Extensions.AI or the OpenAI image client?
+
+**question_id:** `ai-meai-007`\
+**topic_id:** `ai-meai`\
+**difficulty:** `Intermediate`\
+**question_type:** `Practical`
+
+**Question**
+
+How do you generate images with Microsoft.Extensions.AI or the OpenAI image client?
+
+**Answer**
+
+Image generation models turn a text prompt into an image (and some also edit images). In .NET there are two routes: the experimental **`IImageGenerator`** abstraction in Microsoft.Extensions.AI (`GenerateImagesAsync(prompt, options)`, with `ImageGenerationOptions` for size/format/count and the same middleware pipeline concepts) and the provider SDK's client such as `OpenAI.Images.ImageClient` (`GenerateImageAsync`, quality/size/response format). Results come back as a URL (short-lived - download and store it) or base64 bytes. Production concerns: **cost and latency** (seconds per image, priced per image), **content safety** (prompt and output filters, a policy for what users may generate), **moderation** and watermark/provenance (C2PA) requirements, caching by prompt hash, storing outputs in Blob Storage with a CDN, async processing through a queue rather than blocking a request, rate limits and per-user quotas, and alt text for accessibility. Treat prompts like untrusted input and never auto-publish output without review in sensitive contexts.
+
+Real-world example: generate a product image, store it in blob storage and return its URL.
+
+```csharp
+// experimental abstraction: verify names in your package version
+IImageGenerator generator = openAi.GetImageClient("image-prod").AsIImageGenerator();
+
+var result = await generator.GenerateImagesAsync(
+    "Flat illustration of a blue ceramic mug on a white background",
+    new ImageGenerationOptions { Count = 1, ImageSize = new Size(1024, 1024), MediaType = "image/png" }, ct);
+
+var image = result.Contents.OfType<DataContent>().First();
+var blob = container.GetBlobClient($"products/{productId}/{Guid.NewGuid()}.png");
+await blob.UploadAsync(BinaryData.FromBytes(image.Data), overwrite: false, ct);
+```
+
+**Keywords:** `image generation, IImageGenerator, ImageClient, content safety, cost, blob storage, moderation`
+
+**Follow-ups:**
+
+-   Why should generated image URLs from the provider not be stored directly?
+-   How do you stop users generating disallowed content?
+-   Why queue image generation instead of doing it in the request?
+
 # TOPIC --- Embeddings, Vector Search and RAG
 **topic_id:** `ai-rag`
 **priority:** `Core`
@@ -1373,3 +1450,39 @@ builder.Build().Run();
 -   How does Aspire's dashboard help debug a slow RAG request?
 -   How do you deploy an Aspire app to Azure?
 -   What does the AI chat template include that you would still need to harden?
+
+## ai-hosting-006 --- What is Foundry Local and how do you develop against local models from .NET?
+
+**question_id:** `ai-hosting-006`\
+**topic_id:** `ai-hosting`\
+**difficulty:** `Intermediate`\
+**question_type:** `Practical`
+
+**Question**
+
+What is Foundry Local and how do you develop against local models from .NET?
+
+**Answer**
+
+**Foundry Local** runs open models (for example Phi, Qwen, Llama variants) **on the developer or edge machine** using ONNX Runtime with automatic hardware selection (CPU, GPU, NPU), exposing an **OpenAI-compatible local endpoint**. Because it speaks the same API, `OpenAI` client code and `IChatClient` work by changing the endpoint and model alias - no cloud account, no per-token cost, data stays on the machine. Use it for local development and CI smoke tests, offline or air-gapped apps, privacy-sensitive prototypes and edge scenarios; compare with Ollama (similar idea, broader model catalogue, GGUF/llama.cpp). Limits: smaller models are less capable (weaker reasoning, tool calling and structured output reliability), hardware dictates speed and memory, and you must manage model downloads and updates. Keep prompts and evaluations portable across providers, and re-run the evaluation set when switching from local to a hosted model because behaviour differs.
+
+Real-world example: pointing the same IChatClient at a local OpenAI-compatible endpoint in development.
+
+```csharp
+// Development: Foundry Local (or Ollama) exposes an OpenAI-compatible endpoint
+var localEndpoint = builder.Configuration["AI:LocalEndpoint"]!;   // e.g. http://localhost:5273/v1 (check `foundry service status`)
+var local = new OpenAIClient(new ApiKeyCredential("not-needed"), new OpenAIClientOptions { Endpoint = new Uri(localEndpoint) });
+
+builder.Services.AddChatClient(sp => builder.Environment.IsDevelopment()
+    ? local.GetChatClient(builder.Configuration["AI:LocalModel"]!).AsIChatClient()
+    : new AzureOpenAIClient(new Uri(builder.Configuration["AI:Endpoint"]!), new DefaultAzureCredential())
+          .GetChatClient(builder.Configuration["AI:Deployment"]!).AsIChatClient());
+```
+
+**Keywords:** `Foundry Local, Ollama, local models, ONNX Runtime, OpenAI-compatible endpoint, NPU, offline, edge`
+
+**Follow-ups:**
+
+-   What behaviour differences should you expect between a small local model and a hosted one?
+-   When is a local model the right production choice?
+-   How do you keep evaluations meaningful across providers?
