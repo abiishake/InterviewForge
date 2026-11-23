@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, effect, inject, input, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { createLatest } from '../../core/util/latest';
 import { Router, RouterLink } from '@angular/router';
 import { QuestionSummary, ReviewBucket, ReviewOverview } from '../../core/models';
@@ -7,31 +7,50 @@ import { QuestionListComponent } from '../../shared/components/ui.components';
 import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
 import { PaginationComponent } from '../../shared/ui/pagination.component';
 import { SkeletonComponent } from '../../shared/ui/skeleton.component';
+import { IconComponent } from '../../shared/ui/icon.component';
+import { PageHeaderComponent } from '../../shared/ui/page-header.component';
 
 @Component({
   selector: 'app-review',
-  imports: [RouterLink, QuestionListComponent, PaginationComponent, SkeletonComponent, EmptyStateComponent],
+  imports: [RouterLink, QuestionListComponent, PaginationComponent, SkeletonComponent, EmptyStateComponent, IconComponent, PageHeaderComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="page">
-      <div class="page-header"><div><div class="eyebrow">Practice</div><h1>Review</h1>
-        <p>Ratings from interview mode schedule a lightweight spaced review.</p></div>
-        <a class="btn primary practise" routerLink="/interview" [queryParams]="{ bucket: current() }">Practise this queue</a></div>
+      <app-page-header eyebrow="Practice" title="Review queue" description="Ratings from interview mode schedule a lightweight spaced review.">
+        <div actions><a class="btn primary practise" routerLink="/interview" [queryParams]="{ bucket: current() }"><app-icon name="play" [size]="14" /> Practise this queue</a></div>
+      </app-page-header>
       @if (overview(); as o) {
-        <div class="chips" role="group" aria-label="Review queue">
+        <div class="buckets" role="group" aria-label="Review queue">
           @for (b of buckets; track b.value) {
-            <button type="button" [class.active]="current() === b.value" [attr.aria-pressed]="current() === b.value" (click)="select(b.value)">{{ b.label }} · {{ count(o, b.value) }}</button>
+            <button type="button" class="bucket" [class.active]="current() === b.value" [attr.aria-pressed]="current() === b.value" (click)="select(b.value)">
+              <span class="bl">{{ b.label }}</span><span class="bv" [class.hot]="b.value === 'Due' && count(o, b.value) > 0">{{ count(o, b.value) }}</span>
+            </button>
           }
         </div>
       }
-      <div class="mt">
-        @if (loading()) { <app-skeleton kind="list" [count]="6" /> }
-        @else if (!items().length) { <app-empty-state icon="check" title="Nothing in this queue" hint="Rate questions in interview mode and they will show up here when they are due." /> }
-        @else { <app-question-list [items]="items()" [offset]="(page() - 1) * pageSize" /> }
-      </div>
+      <section class="panel mt" aria-live="polite">
+        <div class="panel-head"><h2>{{ currentLabel() }}</h2><span class="spacer"></span><span class="dim small mono">{{ total() }}</span></div>
+        @if (loading()) { <div class="panel-body"><app-skeleton kind="list" [count]="6" /></div> }
+        @else if (!items().length) { <div class="panel-body"><app-empty-state icon="check" title="Nothing in this queue" hint="Rate questions in interview mode and they will show up here when they are due." /></div> }
+        @else { <app-question-list class="flush" [items]="items()" [offset]="(page() - 1) * pageSize" /> }
+      </section>
       <app-pagination [page]="page()" [pageSize]="pageSize" [total]="total()" (pageChange)="go($event)" />
     </div>`,
-  styles: [`@media (max-width: 767px) { .practise { position: sticky; bottom: calc(var(--tab-h) + var(--safe-bottom) + 8px); z-index: 10; } }`]
+  styles: [`
+    .buckets { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr)); gap: 8px; }
+    .bucket { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-card); color: var(--text-muted); cursor: pointer; font: 13px var(--font); text-align: left;
+      transition: border-color var(--dur-1), background var(--dur-1), color var(--dur-1); }
+    .bucket:hover { border-color: var(--border-strong); color: var(--text); }
+    .bucket.active { border-color: var(--accent); background: var(--accent-soft); color: var(--text); }
+    .bl { font: 600 10.5px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+    .bv { font: 600 1.35rem/1 var(--mono); color: var(--text); }
+    .bv.hot { color: var(--warn); }
+    app-question-list.flush ::ng-deep .qlist { border: 0; border-radius: 0 0 var(--radius) var(--radius); }
+    @media (max-width: 767px) {
+      .buckets { display: flex; overflow-x: auto; scrollbar-width: none; } .bucket { flex: none; min-width: 120px; }
+      .practise { position: sticky; bottom: calc(var(--tab-h) + var(--safe-bottom) + 8px); z-index: 10; }
+    }
+  `]
 })
 export class ReviewComponent {
   private api = inject(ApiService);
@@ -48,6 +67,8 @@ export class ReviewComponent {
   readonly buckets: { label: string; value: ReviewBucket }[] = [
     { label: 'All', value: 'All' }, { label: 'Due now', value: 'Due' }, { label: 'Needs review', value: 'NeedsReview' },
     { label: 'Hard', value: 'Hard' }, { label: 'Recently incorrect', value: 'RecentlyIncorrect' }, { label: 'Favorites', value: 'Favorites' }];
+
+  readonly currentLabel = computed(() => this.buckets.find(b => b.value === this.current())?.label ?? 'All');
 
   constructor() {
     this.api.reviewOverview().subscribe(o => this.overview.set(o));
