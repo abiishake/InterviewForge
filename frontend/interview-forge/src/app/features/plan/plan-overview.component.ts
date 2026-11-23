@@ -92,6 +92,7 @@ import { StatTileComponent } from '../../shared/ui/stat-tile.component';
           } @else { <div class="panel-body muted small">This is your only plan.</div> }
         </section>
       } @else {
+        <app-page-header eyebrow="Plan" title="Preparation plan" />
         <app-empty-state icon="calendar" title="No plan yet" hint="A plan spreads the knowledge base across days, following the skill-matrix order: fundamentals, architecture, cloud, interview scenarios.">
           <a class="btn primary" routerLink="/plan/new">Create a preparation plan</a></app-empty-state>
       }
