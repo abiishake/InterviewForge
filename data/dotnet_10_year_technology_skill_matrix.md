@@ -2364,3 +2364,265 @@ Each major skill area is covered by one or more interview topics
 
 -   Count numbers of the form 3^x * 5^y within a range
 -   toolchanger (from your screenshot)
+
+------------------------------------------------------------------------
+
+# 38. AI for .NET Developers
+
+## Resume technologies
+
+-   Microsoft.Extensions.AI (IChatClient, IEmbeddingGenerator)
+-   Azure OpenAI / Microsoft Foundry
+-   Semantic search and RAG
+-   Model Context Protocol (MCP) C# SDK
+-   Microsoft Agent Framework
+
+## 10-year target
+
+### LLM Foundations, Tokens and Prompting --- Core
+
+-   How LLMs work: next-token prediction, context window, temperature and sampling
+-   Tokens, tokenizers (Microsoft.ML.Tokenizers), token limits, token-based pricing and rate limits
+-   Prompt engineering: system/user/assistant roles, instructions, cues, zero-shot and few-shot, chain-of-thought
+-   Structured output and JSON schema responses
+-   Hallucination, grounding and why LLM output is non-deterministic
+
+### Microsoft.Extensions.AI and IChatClient --- Core
+
+-   IChatClient: GetResponseAsync, GetStreamingResponseAsync, ChatMessage, ChatRole, ChatOptions
+-   Middleware pipelines with ChatClientBuilder and DelegatingChatClient (caching, telemetry, rate limiting, function invocation)
+-   Tool/function calling: AIFunction, AIFunctionFactory, FunctionInvokingChatClient, parallel calls
+-   Dependency injection, stateless versus stateful clients, chat history and chat reduction
+-   Provider independence: Azure OpenAI, OpenAI, Ollama, Foundry Local
+
+### Embeddings, Vector Search and RAG --- Core
+
+-   IEmbeddingGenerator and embedding models, similarity metrics and dimensions
+-   Microsoft.Extensions.VectorData: VectorStore, VectorStoreCollection, VectorStoreKey/Data/Vector attributes, filters and providers
+-   Microsoft.Extensions.DataIngestion: readers, chunkers, enrichers, writers and IngestionPipeline
+-   Chunking strategies, hybrid search, re-ranking, citations and RAG failure modes
+-   SQL Server, Azure AI Search, Cosmos DB, Qdrant and PostgreSQL as vector stores
+
+### Agents, Workflows and MCP
+
+-   Agents versus chatbots versus workflows; reasoning, tools and context
+-   Microsoft Agent Framework: agents, sessions, middleware, workflows and multi-agent orchestration
+-   Model Context Protocol: hosts, clients, servers, tools, resources, prompts, sampling
+-   Building an MCP server and client with the MCP C# SDK
+-   Human-in-the-loop approval, bounded loops, cost and step budgets
+
+### Evaluating and Observing AI Apps
+
+-   Microsoft.Extensions.AI.Evaluation: quality, NLP and safety evaluators
+-   Golden datasets, response caching and reporting in CI
+-   LLM-as-judge strengths and pitfalls
+-   OpenTelemetry for AI calls, token and cost tracking, prompt/response logging policy
+
+### AI Safety, Security and Responsible AI
+
+-   OWASP Top 10 for LLM applications: prompt injection, insecure output handling, excessive agency, data leakage
+-   Content filtering, blocklists, Azure AI Content Safety and risk monitoring
+-   PII handling, data residency, retention and consent
+-   Authenticating to Azure OpenAI with managed identity instead of API keys
+-   Responsible AI principles: fairness, transparency, accountability, human oversight
+
+### Models, Hosting and Classic ML
+
+-   Choosing a model and host: Microsoft Foundry, Azure OpenAI, OpenAI, Foundry Local, Ollama
+-   Resilience for AI calls: 429 throttling, retries with backoff, timeouts, fallback models, streaming
+-   ML.NET and ONNX Runtime for classic ML and on-device inference
+-   Testing non-deterministic code with fake IChatClient implementations
+-   Aspire and AI app templates for multi-service AI systems
+
+------------------------------------------------------------------------
+
+# 39. .NET Platform Fundamentals
+
+## Resume technologies
+
+-   .NET / .NET Framework / .NET Standard
+-   CLR, JIT, garbage collector
+-   System.Text.Json, Regex, Span<T>
+-   Generic Host, Microsoft.Extensions.*
+-   dotnet CLI, NuGet, Roslyn
+
+## 10-year target
+
+### Types, Collections and Memory --- Core
+
+-   Common type system, value versus reference types, boxing, struct design, readonly struct and ref struct
+-   Generics, covariance and contravariance, generic math (INumber)
+-   Choosing collections: List, Dictionary, HashSet, SortedSet, Queue, ImmutableArray, FrozenDictionary, concurrent collections
+-   Span<T>, Memory<T>, ArrayPool<T>, stackalloc and usage guidelines
+-   Delegates, events, the observer pattern, IObservable and IDisposable
+
+### Text, Serialization and Time --- Core
+
+-   System.Text.Json: options, source generation, custom converters, polymorphism, JsonNode, migration from Newtonsoft.Json
+-   Regex: backtracking, ReDoS, compiled and source-generated regex, timeouts
+-   Strings: culture and ordinal comparison, encoding, StringBuilder, interpolated string handlers
+-   DateTime, DateTimeOffset, DateOnly, TimeOnly, TimeZoneInfo and TimeProvider
+-   XML serialization and legacy formatters (and why BinaryFormatter is gone)
+
+### Runtime, Assemblies and Deployment
+
+-   CLR, managed execution, JIT, tiered compilation, dynamic PGO and ReadyToRun
+-   Assemblies, versioning, binding, AssemblyLoadContext and plugin loading
+-   Reflection, attributes, source generators and Roslyn analyzers
+-   Publishing: framework-dependent, self-contained, single-file, trimming, Native AOT
+-   Runtime configuration (runtimeconfig.json, GC and threading settings), roll-forward and global.json
+
+### Hosting, Configuration, Logging and Caching --- Core
+
+-   Generic Host, worker services, BackgroundService and IHostedService
+-   Configuration providers, options pattern (IOptions, IOptionsSnapshot, IOptionsMonitor) and validation
+-   Logging: providers, scopes, LoggerMessage source generation, high-performance logging, log sampling
+-   Caching: IMemoryCache, IDistributedCache and HybridCache
+-   Resilience (Microsoft.Extensions.Resilience, Polly v8), time abstractions, data redaction and compliance
+
+### Networking, I/O and Concurrency Primitives
+
+-   HttpClient, SocketsHttpHandler, connection pooling, DNS refresh and service discovery
+-   HTTP/2, HTTP/3 and QUIC, WebSockets, sockets and gRPC
+-   Streams, asynchronous file I/O, System.IO.Pipelines, memory-mapped files
+-   Channels, Task Parallel Library, PLINQ, Parallel.ForEachAsync, async streams
+-   System.Threading.RateLimiting and cancellation patterns
+
+### SDK, Tooling and Diagnostics
+
+-   dotnet CLI, project SDKs, Directory.Build.props, central package management and lock files
+-   NuGet packaging, versioning and private feeds
+-   Diagnostics: dotnet-counters, dotnet-trace, dotnet-dump, dotnet-gcdump, EventPipe, System.Diagnostics.Metrics and ActivitySource
+-   Globalization, ICU and localization with resource files
+-   Testing with xUnit, MSTest, NUnit and code coverage
+
+### Modern C# 14 and .NET 10 Features
+
+-   C# 14: field keyword, extension members, null-conditional assignment, partial constructors, first-class Span conversions
+-   File-based apps (dotnet run app.cs) and top-level statements
+-   Records, pattern matching (list, property, relational), primary constructors, collection expressions
+-   Nullable reference types and null safety
+-   LTS versus STS release strategy and breaking-change review (.NET 8, 9, 10 and 11)
+
+------------------------------------------------------------------------
+
+# 40. Azure SDK & Cloud Services for .NET
+
+## Resume technologies
+
+-   Azure SDK for .NET (Azure.* libraries)
+-   Azure.Identity, managed identity, DefaultAzureCredential
+-   Azure Functions, Service Bus, Event Hubs
+-   Azure App Configuration, Key Vault
+-   Aspire and Azure Developer CLI (azd)
+
+## 10-year target
+
+### Azure SDK Clients and Authentication --- Core
+
+-   Azure SDK design: client classes, ClientOptions, thread safety and singleton lifetime
+-   Azure.Identity: DefaultAzureCredential, ManagedIdentityCredential, ChainedTokenCredential and why production should use deterministic credentials
+-   Local development with developer accounts, service principals and brokers
+-   AddAzureClients dependency injection, named clients and ASP.NET Core guidance
+-   Pagination (Pageable, AsyncPageable), long-running operations, retries, diagnostics and logging, unit testing with mocks
+
+### Azure Functions and Serverless
+
+-   Isolated worker model, triggers and bindings, dependency injection
+-   Hosting plans: Consumption, Flex Consumption, Premium, Dedicated
+-   Durable Functions: orchestrators, fan-out/fan-in, human interaction, determinism rules
+-   Idempotency, retries, poison messages and cold starts
+
+### Azure Messaging and Events
+
+-   Service Bus queues, topics, sessions, dead-letter queues, ServiceBusProcessor settings
+-   Event Hubs partitions, consumer groups, checkpointing, capture
+-   Event Grid for reactive events, Storage Queues for simple queuing
+-   Choosing between command, event and stream services
+
+### Configuration, Aspire and azd Deployment
+
+-   Azure App Configuration, feature flags and Key Vault references
+-   Aspire app host, service discovery, integrations and dashboard
+-   Azure Developer CLI (azd up) and Bicep deployment to Container Apps and App Service
+-   Development setup: Azure CLI, Visual Studio and VS Code tooling, local emulators (Azurite, Cosmos DB emulator)
+
+### Migrating .NET Apps to Azure
+
+-   Choosing a hosting option: App Service, Container Apps, AKS, Virtual Machines, Functions
+-   Rehost, replatform, refactor and rebuild strategies
+-   Azure Migrate application and code assessment (AppCAT) and GitHub Copilot modernization
+-   Migrating SQL Server to Azure SQL Database, Managed Instance or SQL on VM
+-   ASP.NET Framework apps to App Service or Windows containers
+
+### Azure AI Services for .NET
+
+-   Azure OpenAI and Microsoft Foundry from .NET with managed identity
+-   Azure AI Search: keyword, vector and hybrid search with semantic ranking
+-   Content filtering, blocklists and Risks & Safety monitoring
+-   Document Intelligence, Speech, Vision and Language services
+
+------------------------------------------------------------------------
+
+# 41. .NET Architecture Guidance
+
+## Resume technologies
+
+-   .NET Microservices: Architecture for Containerized .NET Applications
+-   Architecting Cloud-Native .NET Apps for Azure
+-   Architect Modern Web Applications with ASP.NET Core and Azure
+-   eShopOnContainers reference application
+-   Blazor, .NET MAUI enterprise patterns
+
+## 10-year target
+
+### Microservices and Containers Architecture --- Core
+
+-   Monolith, SOA and microservices; data sovereignty per microservice; logical versus physical architecture
+-   Identifying bounded contexts and domain-model boundaries for each microservice
+-   Direct client-to-microservice communication versus the API Gateway and BFF patterns (Ocelot, YARP)
+-   Synchronous versus asynchronous communication, integration events and the event bus
+-   Versioning microservice APIs and contracts; service registry and addressability
+-   Resiliency: handling partial failure, retries with exponential backoff, circuit breaker, health monitoring
+-   Orchestrating multi-container apps with docker-compose, Kubernetes and Azure Container Apps
+
+### DDD and CQRS in a Microservice --- Core
+
+-   Layering: domain model, application layer, infrastructure persistence, Web API
+-   Entities, value objects, enumeration classes, aggregates, aggregate roots and seedwork
+-   Repository pattern per aggregate, persistence ignorance and EF Core mapping
+-   Domain validation versus client-side validation, domain events and integration events
+-   Simplified CQRS: queries with Dapper/read models, commands with the domain model
+-   NoSQL as persistence infrastructure
+
+### Cloud-Native Architecture on Azure --- Core
+
+-   What cloud native means: containers, microservices, backing services, CI/CD, automation
+-   Scaling with containers, orchestrators and serverless; Azure deployment options
+-   Communication patterns: front-end client communication, service-to-service, gRPC, service mesh
+-   Data patterns: relational versus NoSQL, caching, Elasticsearch
+-   Resiliency, observability and health: Azure Monitor, Elastic Stack, AKS monitoring
+-   Identity with Microsoft Entra ID and IdentityServer; Azure security for cloud-native apps
+-   DevOps: feature flags, infrastructure as code, Cloud Native Application Bundles
+
+### Modern Web App Architecture
+
+-   Characteristics of modern web applications; traditional web apps versus SPAs
+-   Architectural principles: separation of concerns, DRY, dependency inversion, persistence ignorance, bounded contexts
+-   Common architectures: monolithic, layered, Clean Architecture, onion and ports-and-adapters
+-   Developing ASP.NET Core MVC apps: feature folders, view models, filters, model binding
+-   Working with data: EF Core, specification pattern, caching, testing pyramid
+-   Azure hosting recommendations for ASP.NET Core web apps
+
+### Client App Architecture: Blazor and MAUI
+
+-   Blazor Server, WebAssembly and Auto render modes; hosting model trade-offs
+-   Migrating ASP.NET Web Forms to Blazor: pages, controls, state, auth, data access
+-   MVVM, data binding and the .NET MAUI enterprise patterns (DI, navigation, validation, REST access)
+-   Offline-first design, resiliency and synchronization for mobile clients
+
+### Design Guidelines for Frameworks and Libraries
+
+-   Framework Design Guidelines: naming, type design, member design, extensibility
+-   Library guidance: semantic versioning, binary and source compatibility, multi-targeting
+-   Publishing and maintaining NuGet packages and public API surface

@@ -1,0 +1,10 @@
+Added/modified relative to commit 36d4f3e (v5 plus the scope-alignment update).
+
+README.md
+UPDATE-v6.md
+data/classification-overrides.json
+data/dotnet_10_year_technology_skill_matrix.md
+data/question-bank/ai-dotnet.md
+data/question-bank/azure-dotnet-sdk.md
+data/question-bank/dotnet-architecture-guidance.md
+data/question-bank/dotnet-platform.md

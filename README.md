@@ -27,7 +27,7 @@ docker compose build          # builds Angular + .NET, runs all tests
 docker compose up -d
 ```
 
-Open **http://SERVER_IP:8888**. On first start the app creates `./data/interviewforge.db`, applies migrations and imports the Markdown seed files (≈355 questions with code examples, 24 sections incl. JavaScript, TypeScript, Angular and React, 49 algorithms).
+Open **http://SERVER_IP:8888**. On first start the app creates `./data/interviewforge.db`, applies migrations and imports the Markdown seed files (≈540 questions with code examples, 29 sections incl. JavaScript, TypeScript, Angular, React, AI for .NET Developers, .NET Platform Fundamentals, Azure SDK & Cloud Services and .NET Architecture Guidance, 49 algorithms).
 
 If a firewall is active: `sudo ufw allow 8888/tcp`.
 
@@ -127,7 +127,7 @@ Seed files live in `data/` (also baked into the image under `/app/seed`):
 |---|---|
 | `dotnet_10_year_technology_skill_matrix.md` | Sections, topics, priorities and topic scope |
 | `dotnet_10_year_interview_question_bank.md` | Questions, answers, difficulty, follow-ups |
-| `question-bank/*.md` | Additional question banks, one file per subject (JavaScript, TypeScript, Angular, React) |
+| `question-bank/*.md` | Additional question banks, one file per subject (JavaScript, TypeScript, Angular, React, AI for .NET, .NET platform, Azure SDK, architecture guidance, ...) |
 | `examples/*.md` | Real-world code examples appended to existing questions, keyed by `question_id` |
 | `algorithms_csharp.md` | Algorithms catalogue |
 | `classification-overrides.json` | Optional manual corrections of question-topic → section mapping |
