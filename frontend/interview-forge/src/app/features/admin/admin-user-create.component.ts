@@ -14,7 +14,7 @@ import { FieldValidationDirective, validateForm } from '../../shared/ui/field-va
     <div class="narrow">
       <p class="breadcrumb"><a routerLink="/admin/users">Users</a> / New</p>
       <h1>New user</h1>
-      <form #f="ngForm" class="card stack" (ngSubmit)="save(f)">
+      <form #f="ngForm" class="panel stack form-pad" (ngSubmit)="save(f)">
         <label>Username<input appField="Username" patternMessage="Use letters, digits, dot, dash or underscore." [serverError]="err('username')" name="username" [(ngModel)]="username" required minlength="3" maxlength="32" pattern="[A-Za-z0-9._-]+" autocapitalize="none" autocomplete="off"></label>
         <label>Display name<input appField="Display name" [serverError]="err('displayName')" name="displayName" [(ngModel)]="displayName" required maxlength="80" autocomplete="off"></label>
         <label>Email<input appField="Email" [serverError]="err('email')" name="email" type="email" [(ngModel)]="email" required maxlength="254" autocomplete="off"></label>
@@ -32,7 +32,7 @@ import { FieldValidationDirective, validateForm } from '../../shared/ui/field-va
         <div class="row"><button class="btn primary" [disabled]="busy()">Create user</button><a class="btn ghost" routerLink="/admin/users">Cancel</a></div>
       </form>
     </div>`,
-  styles: [`.narrow { max-width: 560px; } fieldset { border: 0; padding: 0; margin: 0; } .small { font-size: 12px; }`]
+  styles: [`.narrow { max-width: 600px; } fieldset { border: 0; padding: 0; margin: 0; } .small { font-size: 12px; } .form-pad { padding: 18px; }`]
 })
 export class AdminUserCreateComponent {
   private api = inject(ApiService);

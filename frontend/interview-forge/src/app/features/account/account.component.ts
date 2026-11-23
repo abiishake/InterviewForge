@@ -8,62 +8,80 @@ import { AuthService } from '../../core/services/auth.service';
 import { ThemeChoice, ThemeService } from '../../core/services/theme.service';
 import { ToastService } from '../../core/services/toast.service';
 import { FieldValidationDirective, validateForm } from '../../shared/ui/field-validation.directive';
+import { IconComponent } from '../../shared/ui/icon.component';
+import { PageHeaderComponent } from '../../shared/ui/page-header.component';
 
 @Component({
   selector: 'app-account',
-  imports: [FormsModule, FieldValidationDirective],
+  imports: [FormsModule, FieldValidationDirective, IconComponent, PageHeaderComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="page narrow">
-      <div class="eyebrow">Me</div>
-      <h1>Account</h1>
+      <app-page-header eyebrow="Me" title="Account" description="Your profile, appearance, password and signed-in devices." />
       @if (auth.user()?.mustChangePassword) {
         <p class="notice" role="alert">An administrator set a temporary password for you. Choose a new password to continue.</p>
       }
-      @if (!auth.user()?.mustChangePassword) {
-      <section class="card mt" aria-labelledby="profile-h">
-        <h2 id="profile-h">Profile</h2>
-        <form #pf="ngForm" (ngSubmit)="saveProfile(pf)" class="stack">
-          <label>Display name<input appField="Display name" name="displayName" [(ngModel)]="displayName" required maxlength="80" autocomplete="name"></label>
-          <label>Email<input appField="Email" name="email" type="email" [(ngModel)]="email" required maxlength="254" autocomplete="email"></label>
-          <label>Time zone
-            <input name="tz" list="zones" [(ngModel)]="timeZone" autocomplete="off">
-            <datalist id="zones">@for (z of zones; track z) { <option [value]="z"></option> }</datalist>
-          </label>
-          <p class="muted small">Used for "today", your streak and plan days. Detected from this browser: {{ detected }}.</p>
-          @if (profileError()) { <p class="field-error" role="alert">{{ profileError() }}</p> }
-          <div><button class="btn primary" [disabled]="busy()">Save profile</button></div>
-        </form>
-      </section>
-      <section class="card mt" aria-labelledby="theme-h">
-        <h2 id="theme-h">Theme</h2>
-        <div class="chips" role="group" aria-label="Theme">
-          @for (t of themes; track t) {
-            <button type="button" [class.active]="theme.choice() === t" [attr.aria-pressed]="theme.choice() === t" (click)="theme.set(t)">{{ t }}</button>
+      <div class="panel">
+        <div class="panel-body">
+          @if (!auth.user()?.mustChangePassword) {
+          <section class="form-section" aria-labelledby="profile-h">
+            <header><h2 id="profile-h">Profile</h2><p>How you appear to other members, and the time zone used for "today", streaks and plan days.</p></header>
+            <form #pf="ngForm" (ngSubmit)="saveProfile(pf)">
+              <div class="field"><label for="dn">Display name</label><input id="dn" appField="Display name" name="displayName" [(ngModel)]="displayName" required maxlength="80" autocomplete="name"></div>
+              <div class="field"><label for="em">Email</label><input id="em" appField="Email" name="email" type="email" [(ngModel)]="email" required maxlength="254" autocomplete="email"></div>
+              <div class="field"><label for="tz">Time zone</label>
+                <input id="tz" name="tz" list="zones" [(ngModel)]="timeZone" autocomplete="off" aria-describedby="tz-hint">
+                <datalist id="zones">@for (z of zones; track z) { <option [value]="z"></option> }</datalist>
+                <div id="tz-hint" class="field-hint">Detected from this browser: {{ detected }}.</div></div>
+              @if (profileError()) { <p class="field-error" role="alert">{{ profileError() }}</p> }
+              <button class="btn primary" [disabled]="busy()">Save profile</button>
+            </form>
+          </section>
+          <section class="form-section" aria-labelledby="theme-h">
+            <header><h2 id="theme-h">Appearance</h2><p>System follows your device's light or dark setting.</p></header>
+            <div class="themes" role="group" aria-label="Theme">
+              @for (t of themes; track t) {
+                <button type="button" class="theme" [class.active]="theme.choice() === t" [attr.aria-pressed]="theme.choice() === t" (click)="theme.set(t)">
+                  <span class="sw" [class]="'sw ' + t" aria-hidden="true"><i></i><i></i></span><span class="tl">{{ t }}</span>
+                </button>
+              }
+            </div>
+          </section>
+          }
+          <section class="form-section" aria-labelledby="pw-h">
+            <header><h2 id="pw-h">Password</h2><p>12-128 characters. Changing it signs out your other devices.</p></header>
+            <form #pwf="ngForm" (ngSubmit)="changePassword(pwf)">
+              <div class="field"><label for="cur">Current password</label><input id="cur" appField="Current password" name="current" type="password" [(ngModel)]="current" required autocomplete="current-password"></div>
+              <div class="grid two">
+                <div class="field"><label for="np">New password</label><input id="np" appField="New password" hintId="pw-rules" name="next" type="password" [(ngModel)]="next" required minlength="12" maxlength="128" autocomplete="new-password"></div>
+                <div class="field"><label for="cp">Confirm new password</label><input id="cp" #confirmEl appField="Confirm password" [serverError]="confirmError()" (input)="confirmError.set('')" name="confirm" type="password" [(ngModel)]="confirm" required autocomplete="new-password"></div>
+              </div>
+              <p id="pw-rules" class="sr-only">12-128 characters. Changing it signs out your other devices.</p>
+              @if (pwError()) { <p class="field-error" role="alert">{{ pwError() }}</p> }
+              <button class="btn primary" [disabled]="busy()">Change password</button>
+            </form>
+          </section>
+          @if (!auth.user()?.mustChangePassword) {
+          <section class="form-section" aria-labelledby="sess-h">
+            <header><h2 id="sess-h">Sessions</h2><p>Sign out everywhere except this browser.</p></header>
+            <div><button class="btn" (click)="revokeOthers()"><app-icon name="logout" [size]="14" /> Sign out of other devices</button></div>
+          </section>
           }
         </div>
-      </section>
-      }
-      <section class="card mt" aria-labelledby="pw-h">
-        <h2 id="pw-h">Change password</h2>
-        <form #pwf="ngForm" (ngSubmit)="changePassword(pwf)" class="stack">
-          <label>Current password<input appField="Current password" name="current" type="password" [(ngModel)]="current" required autocomplete="current-password"></label>
-          <label>New password<input appField="New password" hintId="pw-rules" name="next" type="password" [(ngModel)]="next" required minlength="12" maxlength="128" autocomplete="new-password"></label>
-          <label>Confirm new password<input #confirmEl appField="Confirm password" [serverError]="confirmError()" (input)="confirmError.set('')" name="confirm" type="password" [(ngModel)]="confirm" required autocomplete="new-password"></label>
-          <p id="pw-rules" class="muted small">12-128 characters. Changing it signs out your other devices.</p>
-          @if (pwError()) { <p class="field-error" role="alert">{{ pwError() }}</p> }
-          <div><button class="btn primary" [disabled]="busy()">Change password</button></div>
-        </form>
-      </section>
-      @if (!auth.user()?.mustChangePassword) {
-      <section class="card mt" aria-labelledby="sess-h">
-        <h2 id="sess-h">Sessions</h2>
-        <p class="muted">Sign out everywhere except this browser.</p>
-        <button class="btn" (click)="revokeOthers()">Sign out of other devices</button>
-      </section>
-      }
+      </div>
     </div>`,
-  styles: [`.narrow { max-width: 680px; } .small { font-size: 12px; } .notice { background: var(--warn-soft); border: 1px solid var(--warn); border-radius: var(--radius-sm); padding: 10px 12px; }`]
+  styles: [`
+    .notice { background: var(--warn-soft); border: 1px solid var(--warn); border-radius: var(--radius-sm); padding: 10px 12px; }
+    .grid.two { grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); gap: 0 14px; }
+    .themes { display: flex; gap: 10px; flex-wrap: wrap; }
+    .theme { display: flex; flex-direction: column; gap: 6px; align-items: center; padding: 8px; border: 1px solid var(--border-strong); border-radius: var(--radius); background: var(--bg-elev); cursor: pointer; color: var(--text-muted); font: 12.5px var(--font); text-transform: capitalize; transition: border-color var(--dur-1); }
+    .theme:hover { border-color: var(--text-dim); }
+    .theme.active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); color: var(--text); }
+    .sw { display: flex; width: 88px; height: 52px; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); }
+    .sw i { flex: 1; } .sw.light i { background: #f3f4f6; } .sw.light i:first-child { background: #fff; flex: .4; border-right: 1px solid #e3e6eb; }
+    .sw.dark i { background: #0a0d12; } .sw.dark i:first-child { background: #10151c; flex: .4; border-right: 1px solid #1f2833; }
+    .sw.system i:first-child { background: linear-gradient(135deg, #fff 50%, #10151c 50%); flex: .4; } .sw.system i { background: linear-gradient(135deg, #f3f4f6 50%, #0a0d12 50%); }
+  `]
 })
 export class AccountComponent implements OnInit {
   readonly auth = inject(AuthService);

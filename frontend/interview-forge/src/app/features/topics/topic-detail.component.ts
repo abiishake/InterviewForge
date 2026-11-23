@@ -1,54 +1,80 @@
 import { DialogService } from '../../core/services/dialog.service';
 import { FeedbackFormComponent } from '../../shared/components/feedback-form.component';
-import { DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, effect, inject, input, signal } from '@angular/core';
 import { createLatest } from '../../core/util/latest';
 import { Router, RouterLink } from '@angular/router';
 import { QuestionFilter, QuestionSummary, Topic } from '../../core/models';
 import { ApiService } from '../../core/services/api.service';
 import { MarkdownComponent } from '../../shared/components/markdown.component';
-import { ProgressBarComponent, QuestionListComponent } from '../../shared/components/ui.components';
+import { QuestionListComponent } from '../../shared/components/ui.components';
+import { IconComponent } from '../../shared/ui/icon.component';
+import { MeterComponent } from '../../shared/ui/meter.component';
+import { PageHeaderComponent } from '../../shared/ui/page-header.component';
 import { PaginationComponent } from '../../shared/ui/pagination.component';
 import { SkeletonComponent } from '../../shared/ui/skeleton.component';
 
 
 @Component({
   selector: 'app-topic-detail',
-  imports: [FeedbackFormComponent, RouterLink, ProgressBarComponent, QuestionListComponent, MarkdownComponent, DecimalPipe, PaginationComponent, SkeletonComponent],
+  imports: [FeedbackFormComponent, RouterLink, QuestionListComponent, MarkdownComponent, PaginationComponent, SkeletonComponent, IconComponent, MeterComponent, PageHeaderComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="page">
       @if (topic(); as t) {
-        <div class="breadcrumb"><a routerLink="/sections">Sections</a> / <a [routerLink]="['/sections', t.sectionId]">{{ t.sectionName }}</a> → {{ t.name }}</div>
-        <div class="page-header">
-          <div><h1>{{ t.name }}</h1>@if (t.description) { <p>{{ t.description }}</p> }</div>
-          <div class="row">
-            @if (questions().length) { <a class="btn primary" routerLink="/interview" [queryParams]="{ topic: t.id }">Practise in interview mode</a> }
-            <a class="btn" routerLink="/questions/new" [queryParams]="{ topic: t.id }">+ Add question</a>
+        <app-page-header [title]="t.name" [description]="t.description ?? ''">
+          <div crumbs class="breadcrumb"><a routerLink="/sections">Sections</a> / <a [routerLink]="['/sections', t.sectionId]">{{ t.sectionName }}</a> / {{ t.name }}</div>
+          <div class="badges"><span class="badge" [class.accent]="t.priority === 'Core'">{{ t.priority }}</span>
+            @if (t.addedBy) { <span class="badge info">Added by {{ t.addedBy }}</span> }</div>
+          <div actions>
+            @if (t.canEdit) { <button class="btn" (click)="rename()"><app-icon name="edit" [size]="14" /> Rename</button><button class="btn danger" (click)="remove()"><app-icon name="trash" [size]="14" /> Delete</button> }
+            <a class="btn" routerLink="/questions/new" [queryParams]="{ topic: t.id }"><app-icon name="plus" [size]="14" /> Add question</a>
+            @if (questions().length) { <a class="btn primary" routerLink="/interview" [queryParams]="{ topic: t.id }"><app-icon name="play" [size]="14" /> Practise</a> }
           </div>
-        </div>
-        <div class="row mt">@if(t.addedBy){<span class="badge info">Added by {{t.addedBy}}</span>}@if(t.canEdit){<button class="btn" (click)="rename()">Edit topic</button><button class="btn danger" (click)="remove()">Delete topic</button>}</div>
-        <app-feedback-form kind="Topic" [contentId]="t.id" />
-        <div class="card mt">
-          <div class="row"><b>Progress</b><span class="muted">{{ t.progress.completed }} / {{ t.progress.total }} questions completed</span><span class="spacer"></span>
-            <span class="mono">{{ t.progress.percent | number:'1.0-0' }}%</span></div>
-          <div class="mt"><app-progress-bar [value]="t.progress.completed" [total]="t.progress.total" [review]="t.progress.needsReview" /></div>
-        </div>
+        </app-page-header>
+
+        <section class="panel">
+          <div class="panel-body summary">
+            <app-meter class="lg grow" label="Topic progress" [value]="t.progress.completed" [total]="t.progress.total" [review]="t.progress.needsReview" />
+            <div class="nums"><span><b>{{ t.progress.inProgress }}</b> in progress</span><span><b [class.warnc]="t.progress.needsReview > 0">{{ t.progress.needsReview }}</b> need review</span></div>
+          </div>
+        </section>
         @if (t.scope) {
-          <details class="card mt"><summary><b>Expected scope (skill matrix)</b></summary><div class="mt"><app-markdown [source]="t.scope" /></div></details>
+          <details class="panel mt scope"><summary class="panel-head"><app-icon name="target" [size]="16" /><h2>Expected scope</h2><span class="dim small">skill matrix</span><span class="spacer"></span><app-icon class="chev" name="chevron-down" [size]="16" /></summary>
+            <div class="panel-body"><app-markdown [source]="t.scope" /></div></details>
         }
-        <div class="chips mt-lg" role="group" aria-label="Filter questions">
-          @for (f of filters; track f.value) { <button type="button" [class.active]="filter() === f.value" [attr.aria-pressed]="filter() === f.value" (click)="setFilter(f.value)">{{ f.label }}</button> }
-        </div>
-        <div class="mt">
-          @if (loadingQs()) { <app-skeleton kind="list" [count]="6" /> }
-          @else { <app-question-list [items]="questions()" [showTopic]="false" [contextTopicId]="t.id" [offset]="(page() - 1) * pageSize" emptyText="No questions match this filter." /> }
-        </div>
+
+        <section class="panel mt" aria-labelledby="q-h">
+          <div class="panel-head wrap"><h2 id="q-h">Questions</h2><span class="dim small mono">{{ total() }}</span><span class="spacer"></span>
+            <div class="chips" role="group" aria-label="Filter questions">
+              @for (f of filters; track f.value) { <button type="button" [class.active]="filter() === f.value" [attr.aria-pressed]="filter() === f.value" (click)="setFilter(f.value)">{{ f.label }}</button> }
+            </div>
+          </div>
+          @if (loadingQs()) { <div class="panel-body"><app-skeleton kind="list" [count]="6" /></div> }
+          @else { <app-question-list class="flush" [items]="questions()" [showTopic]="false" [contextTopicId]="t.id" [offset]="(page() - 1) * pageSize" emptyText="No questions match this filter." /> }
+        </section>
         <app-pagination [page]="page()" [pageSize]="pageSize" [total]="total()" (pageChange)="goPage($event)" />
+        <app-feedback-form class="mt" kind="Topic" [contentId]="t.id" />
         <a class="fab" routerLink="/questions/new" [queryParams]="{ topic: t.id }" aria-label="Add question">+</a>
       } @else { <app-skeleton kind="list" [count]="8" /> }
     </div>`,
-  styles: [`.mono { font-family: var(--mono); } summary { cursor: pointer; }`]
+  styles: [`
+    .badges { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+    .summary { display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
+    .grow { flex: 1 1 320px; }
+    .nums { display: flex; gap: 18px; font-size: 13px; color: var(--text-muted); }
+    .nums b { font-family: var(--mono); color: var(--text); }
+    .warnc { color: var(--warn) !important; }
+    .scope summary { cursor: pointer; list-style: none; border-bottom-color: transparent; }
+    .scope summary::-webkit-details-marker { display: none; }
+    .scope[open] summary { border-bottom-color: var(--border); }
+    .scope[open] .chev { transform: rotate(180deg); }
+    .chev { transition: transform var(--dur-2) var(--ease-out); color: var(--text-dim); }
+    .panel-head.wrap { flex-wrap: wrap; row-gap: 6px; padding-top: 8px; padding-bottom: 8px; }
+    .panel-head .chips { padding: 0; }
+    app-question-list.flush ::ng-deep .qlist { border: 0; border-radius: 0 0 var(--radius) var(--radius); }
+    app-question-list.flush ::ng-deep .empty { border: 0; }
+    app-feedback-form { display: block; }
+  `]
 })
 export class TopicDetailComponent {
   private api = inject(ApiService);private router=inject(Router);private dialogs=inject(DialogService);

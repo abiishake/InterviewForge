@@ -6,20 +6,22 @@ import { ApiService } from '../../core/services/api.service';
 import { ToastService } from '../../core/services/toast.service';
 import { MarkdownComponent } from '../../shared/components/markdown.component';
 import { FieldValidationDirective, validateForm } from '../../shared/ui/field-validation.directive';
+import { PageHeaderComponent } from '../../shared/ui/page-header.component';
 
 const URL_PATTERN = /^https?:\/\/[^\s]+$/i;
 
 @Component({
   selector: 'app-question-form',
-  imports: [ReactiveFormsModule, RouterLink, MarkdownComponent, FieldValidationDirective],
+  imports: [ReactiveFormsModule, RouterLink, MarkdownComponent, FieldValidationDirective, PageHeaderComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="page">
-      <div class="breadcrumb"><a routerLink="/mine">My content</a> / {{ id() ? 'Edit question' : 'New question' }}</div>
-      <h1>{{ id() ? 'Edit question' : 'Create question' }}</h1>
-      <form [formGroup]="form" (ngSubmit)="save()" class="mt">
-        <div class="grid grid-2">
-          <div class="card">
+      <app-page-header [title]="id() ? 'Edit question' : 'Create question'" description="Shared with every member. Your question works like imported content: search, plans and review.">
+        <div crumbs class="breadcrumb"><a routerLink="/mine">My content</a> / {{ id() ? 'Edit question' : 'New question' }}</div>
+      </app-page-header>
+      <form [formGroup]="form" (ngSubmit)="save()">
+        <div class="qgrid">
+          <section class="panel"><div class="panel-head"><h2>Question</h2><span class="dim small">placement and metadata</span></div><div class="panel-body">
             <div class="field">
               <label for="sec">Section</label>
               <select id="sec" formControlName="sectionId" (change)="onSectionChange()">
@@ -57,26 +59,35 @@ const URL_PATTERN = /^https?:\/\/[^\s]+$/i;
               </div>
               <button type="button" class="btn sm mt-s" (click)="addRef()">+ Add URL</button>
             </div>
-          </div>
-          <div class="card">
-            <div class="row"><label for="a">Answer (Markdown)</label><span class="spacer"></span>
-              <div class="tabs small"><button type="button" [class.active]="!preview()" (click)="preview.set(false)">Write</button>
-                <button type="button" [class.active]="preview()" (click)="preview.set(true)">Preview</button></div></div>
+          </div></section>
+          <section class="panel answer-panel">
+            <div class="panel-head"><label for="a" class="ph-label">Answer</label><span class="dim small">Markdown</span><span class="spacer"></span>
+              <div class="seg" role="group" aria-label="Answer view"><button type="button" class="btn sm" [class.on-tab]="!preview()" [attr.aria-pressed]="!preview()" (click)="preview.set(false)">Write</button>
+                <button type="button" class="btn sm" [class.on-tab]="preview()" [attr.aria-pressed]="preview()" (click)="preview.set(true)">Preview</button></div></div>
+            <div class="panel-body">
             @if (preview()) { <div class="preview"><app-markdown [source]="form.value.answer" /></div> }
             @else { <textarea id="a" rows="22" appField="Answer" [serverError]="errors()['answer']?.[0]" formControlName="answer" placeholder="Supports **bold**, lists, tables, \`\`\`csharp code blocks\`\`\` and [links](https://learn.microsoft.com). Bare URLs become links."></textarea> }
-          </div>
+            </div>
+          </section>
         </div>
-        <div class="row mt">
-          <button class="btn primary" type="submit" [disabled]="saving()">Save</button>
-          <a class="btn ghost" [routerLink]="id() ? ['/questions', id()] : ['/mine']">Cancel</a>
+        <div class="form-actions">
           @if (generalError()) { <span class="field-error">{{ generalError() }}</span> }
+          <span class="spacer"></span>
+          <a class="btn ghost" [routerLink]="id() ? ['/questions', id()] : ['/mine']">Cancel</a>
+          <button class="btn primary" type="submit" [disabled]="saving()">Save question</button>
         </div>
       </form>
     </div>`,
   styles: [`
     .mt-s { margin-top: 8px; }
     textarea.plain { font-family: var(--font); font-size: 14px; min-height: 0; }
-    .tabs.small { margin: 0; border: none; } .tabs.small button { padding: 4px 10px; font-size: 13px; }
+    .qgrid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 12px; align-items: start; }
+    @media (max-width: 1100px) { .qgrid { grid-template-columns: minmax(0, 1fr); } }
+    .ph-label { margin: 0; font-size: 13.5px; font-weight: 600; color: var(--text); }
+    .seg { display: inline-flex; } .seg .btn:first-child { border-radius: var(--radius-sm) 0 0 var(--radius-sm); } .seg .btn:last-child { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; margin-left: -1px; }
+    .seg .btn.on-tab { background: var(--bg-active); color: var(--text); }
+    .answer-panel textarea { min-height: 420px; }
+    .spacer { flex: 1; }
     .preview { min-height: 420px; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; background: var(--bg); }
   `]
 })

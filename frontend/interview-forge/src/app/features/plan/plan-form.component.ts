@@ -5,50 +5,60 @@ import { ApiError, Section } from '../../core/models';
 import { ApiService } from '../../core/services/api.service';
 import { ToastService } from '../../core/services/toast.service';
 import { FieldValidationDirective, validateForm } from '../../shared/ui/field-validation.directive';
+import { IconComponent } from '../../shared/ui/icon.component';
+import { PageHeaderComponent } from '../../shared/ui/page-header.component';
 
 @Component({
   selector: 'app-plan-form',
-  imports: [ReactiveFormsModule, RouterLink, FieldValidationDirective],
+  imports: [ReactiveFormsModule, RouterLink, FieldValidationDirective, IconComponent, PageHeaderComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="page narrow">
-      <div class="breadcrumb"><a routerLink="/plan">Plan</a> / {{ planId() ? 'Edit' : 'New' }}</div>
-      <h1>{{ planId() ? 'Edit plan' : 'Create a preparation plan' }}</h1>
-      <p class="muted">Questions are distributed in skill-matrix order, keeping topics together. Completed questions are skipped unless you include them.</p>
+      <app-page-header [title]="planId() ? 'Edit plan' : 'Create a preparation plan'" description="Questions are distributed in skill-matrix order, keeping topics together. Completed questions are skipped unless you include them.">
+        <div crumbs class="breadcrumb"><a routerLink="/plan">Plan</a> / {{ planId() ? 'Edit' : 'New' }}</div>
+      </app-page-header>
 
-      <form [formGroup]="form" (ngSubmit)="save()" class="card mt">
-        <div class="field"><label for="name">Plan name</label><input id="name" type="text" appField="Plan name" [serverError]="serverErrors()['name']?.[0]" formControlName="name" /></div>
-        <div class="grid grid-3">
-          <div class="field"><label for="d">Duration (days)</label><input id="d" type="number" min="1" max="365" appField="Duration" [serverError]="serverErrors()['durationDays']?.[0]" formControlName="durationDays" /></div>
-          <div class="field"><label for="q">Questions per day</label><input id="q" type="number" min="1" max="200" appField="Questions per day" [serverError]="serverErrors()['questionsPerDay']?.[0]" formControlName="questionsPerDay" /></div>
-          <div class="field"><label for="m">Study minutes per day (0 = no limit)</label><input id="m" type="number" min="0" max="1440" appField="Study minutes" formControlName="studyMinutesPerDay" /></div>
-        </div>
-        @if (!planId()) {
-          <div class="field"><label for="s">Start date</label><input id="s" type="date" formControlName="startDate" aria-describedby="s-hint" /><div id="s-hint" class="muted small">Leave empty to start today in your time zone.</div></div>
-        }
-        <div class="field">
-          <label>Sections (none selected = everything)</label>
-          <div class="chips">
-            @for (s of sections(); track s.id) {
-              <button type="button" class="chip" [class.on]="selected().has(s.id)" (click)="toggle(s.id)">{{ s.name }} <span class="dim">{{ s.progress.total }}</span></button>
-            }
+      <form [formGroup]="form" (ngSubmit)="save()" class="panel">
+        <div class="panel-body">
+          <div class="form-section">
+            <header><h2>Basics</h2><p>Name the plan and set its length and pace.</p></header>
+            <div>
+              <div class="field"><label for="name">Plan name</label><input id="name" type="text" appField="Plan name" [serverError]="serverErrors()['name']?.[0]" formControlName="name" /></div>
+              <div class="grid grid-3">
+                <div class="field"><label for="d">Duration (days)</label><input id="d" type="number" min="1" max="365" appField="Duration" [serverError]="serverErrors()['durationDays']?.[0]" formControlName="durationDays" /></div>
+                <div class="field"><label for="q">Questions per day</label><input id="q" type="number" min="1" max="200" appField="Questions per day" [serverError]="serverErrors()['questionsPerDay']?.[0]" formControlName="questionsPerDay" /></div>
+                <div class="field"><label for="m">Minutes per day</label><input id="m" type="number" min="0" max="1440" appField="Study minutes" formControlName="studyMinutesPerDay" aria-describedby="m-hint" /><div id="m-hint" class="field-hint">0 means no limit.</div></div>
+              </div>
+              @if (!planId()) {
+                <div class="field"><label for="s">Start date</label><input id="s" type="date" formControlName="startDate" aria-describedby="s-hint" /><div id="s-hint" class="field-hint">Leave empty to start today in your time zone.</div></div>
+              }
+            </div>
+          </div>
+          <div class="form-section">
+            <header><h2>Scope</h2><p>Pick sections to focus on. None selected means everything.</p></header>
+            <div>
+              <div class="chips wrap" role="group" aria-label="Sections">
+                @for (s of sections(); track s.id) {
+                  <button type="button" [class.active]="selected().has(s.id)" [attr.aria-pressed]="selected().has(s.id)" (click)="toggle(s.id)">{{ s.name }} <span class="dim mono">{{ s.progress.total }}</span></button>
+                }
+              </div>
+              <label class="checkbox mt"><input type="checkbox" formControlName="includeCompleted" /> Include questions I already completed</label>
+              @if (!planId()) { <label class="checkbox mt"><input type="checkbox" formControlName="makeCurrent" /> Make this my current plan</label> }
+              <p class="estimate" role="status"><app-icon name="target" [size]="16" /> {{ estimate() }}</p>
+            </div>
           </div>
         </div>
-        <label class="checkbox"><input type="checkbox" formControlName="includeCompleted" /> Include questions I already completed</label>
-        @if (!planId()) { <label class="checkbox mt"><input type="checkbox" formControlName="makeCurrent" /> Make this my current plan</label> }
-        <p class="estimate" role="status">{{ estimate() }}</p>
-        <div class="row mt">
-          <button class="btn primary" type="submit" [disabled]="saving()">{{ planId() ? 'Save & regenerate from today' : 'Generate plan' }}</button>
+        <div class="form-actions">
           <a class="btn ghost" routerLink="/plan">Cancel</a>
+          <button class="btn primary" type="submit" [disabled]="saving()">{{ planId() ? 'Save and regenerate from today' : 'Generate plan' }}</button>
         </div>
       </form>
     </div>`,
   styles: [`
-    .narrow { max-width: 820px; }
-    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
-    .chip { background: var(--bg); border: 1px solid var(--border-strong); color: var(--text-muted); border-radius: 99px; padding: 4px 12px; font: 13px var(--font); cursor: pointer; }
-    .chip.on { background: var(--accent-soft); color: var(--text); border-color: var(--accent); }
-    .estimate { margin: 14px 0 0; padding: 10px 12px; background: var(--info-soft); border-radius: var(--radius-sm); } .small { font-size: 12px; }
+    .chips.wrap { flex-wrap: wrap; overflow: visible; }
+    .estimate { display: flex; gap: 8px; align-items: flex-start; margin: 14px 0 0; padding: 10px 12px; background: var(--info-soft); border-radius: var(--radius-sm); font-size: 13px; }
+    .estimate app-icon { color: var(--info); margin-top: 2px; }
+    form.panel .form-actions { margin: 0; border-radius: 0 0 var(--radius) var(--radius); }
   `]
 })
 export class PlanFormComponent {

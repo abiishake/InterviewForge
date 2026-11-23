@@ -11,9 +11,9 @@ import { Difficulty, ProgressStatus, QuestionSummary } from '../../core/models';
       @if (review() > 0) { <div class="fill review" [style.width.%]="reviewPct()"></div> }
     </div>`,
   styles: [`
-    .pb { display: flex; height: 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 99px; overflow: hidden; }
-    .pb.thin { height: 5px; }
-    .fill { background: var(--ok); transition: width .3s; }
+    .pb { display: flex; height: 6px; background: var(--heat-0); border-radius: 99px; overflow: hidden; }
+    .pb.thin { height: 4px; }
+    .fill { background: var(--ready); transition: width .5s var(--ease-out); }
     .fill.review { background: var(--warn); }
   `]
 })

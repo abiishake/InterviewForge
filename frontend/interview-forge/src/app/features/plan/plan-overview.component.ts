@@ -9,42 +9,50 @@ import { ProgressBarComponent } from '../../shared/components/ui.components';
 import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
 import { MenuComponent, MenuItem } from '../../shared/ui/menu.component';
 import { SkeletonComponent } from '../../shared/ui/skeleton.component';
+import { IconComponent } from '../../shared/ui/icon.component';
+import { MeterComponent } from '../../shared/ui/meter.component';
+import { PageHeaderComponent } from '../../shared/ui/page-header.component';
+import { StatTileComponent } from '../../shared/ui/stat-tile.component';
 
 @Component({
   selector: 'app-plan-overview',
-  imports: [RouterLink, ProgressBarComponent, DatePipe, DecimalPipe, MenuComponent, SkeletonComponent, EmptyStateComponent],
+  imports: [RouterLink, ProgressBarComponent, DatePipe, DecimalPipe, MenuComponent, SkeletonComponent, EmptyStateComponent, IconComponent, MeterComponent, PageHeaderComponent, StatTileComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="page">
       @if (loading()) { <app-skeleton kind="card" [count]="3" /> }
       @else if (plan(); as p) {
-        <div class="page-header">
-          <div>
-            <div class="eyebrow">Preparation plan</div>
-            <h1>{{ p.name }}</h1>
-            <p>Day <b>{{ p.currentDay }}</b> of {{ p.durationDays }} · {{ p.questionsPerDay }} questions/day · {{ p.studyMinutesPerDay }} min/day · started {{ p.startDate | date:'mediumDate' }}
-              @if (p.status === 'Paused') { <span class="badge warn">paused</span> }</p>
-          </div>
-          <div class="row">
+        <app-page-header eyebrow="Preparation plan" [title]="p.name" [description]="'Started ' + (p.startDate | date:'mediumDate') + ' · ' + p.studyMinutesPerDay + ' min/day'">
+          @if (p.status === 'Paused') { <span class="badge warn mt-s">paused</span> }
+          <div actions>
+            <app-menu label="Plan actions" [items]="menuItems()" />
             @if (p.status === 'Completed') { <a class="btn primary" routerLink="/plan/new">Create next plan</a> }
             @else { <a class="btn primary" [routerLink]="['/plan', p.id, 'day', p.currentDay]">Today's target</a> }
-            <app-menu label="Plan actions" [items]="menuItems()" />
           </div>
-        </div>
+        </app-page-header>
 
         @if (p.status === 'Completed') {
-          <div class="card done-card" role="status"><b>Plan complete.</b> Every planned question is done. Start a new plan to keep going.</div>
+          <div class="done-card" role="status"><b>Plan complete.</b> Every planned question is done. Start a new plan to keep going.</div>
         }
-        <div class="card" [class.mt]="p.status === 'Completed'">
-          <div class="row"><b>{{ p.progress.completed }} / {{ p.progress.total }}</b><span class="muted">planned questions completed</span><span class="spacer"></span>
-            <span class="mono">{{ p.progress.percent | number:'1.0-1' }}%</span></div>
-          <div class="mt"><app-progress-bar [value]="p.progress.completed" [total]="p.progress.total" [review]="p.progress.needsReview" /></div>
-          @if (p.unscheduledCount > 0) {
-            <p class="muted mt">{{ p.unscheduledCount }} eligible questions did not fit the plan — increase questions/day or duration, then regenerate.</p>
-          }
+        <div class="tiles">
+          <app-stat-tile label="Day" icon="calendar" [value]="p.currentDay" [total]="p.durationDays" [sub]="(p.durationDays - p.currentDay) + ' days left'" />
+          <app-stat-tile label="Completed" icon="check" tone="ready" [value]="p.progress.completed" [total]="p.progress.total" [sub]="(p.progress.percent | number:'1.0-1') + '% of the plan'" />
+          <app-stat-tile label="Pace" icon="bolt" [value]="p.questionsPerDay" unit="/day" [sub]="p.studyMinutesPerDay + ' minutes a day'" />
+          <app-stat-tile label="Needs review" icon="flag" [tone]="p.progress.needsReview ? 'warn' : ''" [value]="p.progress.needsReview" sub="in this plan" link="/review" />
         </div>
+        <section class="panel mt">
+          <div class="panel-body">
+            <app-meter class="lg" label="Plan progress" [value]="p.progress.completed" [total]="p.progress.total" [review]="p.progress.needsReview" />
+            @if (p.unscheduledCount > 0) {
+              <p class="muted small unsched"><app-icon name="alert" [size]="14" /> {{ p.unscheduledCount }} eligible questions did not fit the plan. Increase questions/day or duration, then regenerate.</p>
+            }
+          </div>
+        </section>
 
-        <h2 class="mt-lg">Calendar</h2>
+        <section class="panel mt" aria-labelledby="cal-h">
+          <div class="panel-head"><h2 id="cal-h">Calendar</h2><span class="spacer"></span>
+            <span class="legend small dim" aria-hidden="true"><span><i class="sw today"></i>Today</span><span><i class="sw done"></i>Done</span><span><i class="sw over"></i>Overdue</span></span></div>
+          <div class="panel-body">
         <div class="weekdays" aria-hidden="true">@for (w of weekdays; track w) { <span>{{ w }}</span> }</div>
         <div class="calendar">
           @for (d of days(); track d.id; let first = $first) {
@@ -54,43 +62,64 @@ import { SkeletonComponent } from '../../shared/ui/skeleton.component';
               @if (d.isToday) { <span class="badge accent">today</span> } @else if (d.isPast && d.status === 'Pending' && d.total > 0 && d.completed < d.total) { <span class="badge warn">overdue</span> }
               <div class="small topics">{{ d.topicNames.slice(0, 3).join(' · ') || d.title }}</div>
               <app-progress-bar [value]="d.completed" [total]="d.total" [thin]="true" />
-              <div class="small dim">{{ d.completed }}/{{ d.total }} @if (d.status === 'Skipped') { · skipped }</div>
+              <div class="small dim mono">{{ d.completed }}/{{ d.total }} @if (d.status === 'Skipped') { · skipped }</div>
             </a>
           }
         </div>
-
-        @if (plans().length > 1) {
-          <h2 class="mt-lg">Other plans</h2>
-          <div class="grid grid-3">
-            @for (o of plans(); track o.id) {
-              @if (!o.isCurrent) {
-                <div class="card"><h3>{{ o.name }}</h3><p class="muted small">{{ o.durationDays }} days · {{ o.progress.percent | number:'1.0-0' }}%</p>
-                  <div class="row"><button class="btn sm" (click)="makeCurrent(o)">Make current</button><button class="btn sm danger" (click)="remove(o)">Delete</button></div></div>
-              }
-            }
           </div>
-        }
-        <p class="mt-lg"><a routerLink="/plan/new">+ Create another plan</a></p>
+        </section>
+
+        <section class="panel mt" aria-labelledby="other-h">
+          <div class="panel-head"><h2 id="other-h">Other plans</h2><span class="spacer"></span><a class="btn sm" routerLink="/plan/new"><app-icon name="plus" [size]="14" /> New plan</a></div>
+          @if (plans().length > 1) {
+            <div class="table-wrap">
+              <table class="data stack-sm">
+                <thead><tr><th>Plan</th><th class="num">Days</th><th class="meter-col">Progress</th><th><span class="sr-only">Actions</span></th></tr></thead>
+                <tbody>
+                  @for (o of plans(); track o.id) {
+                    @if (!o.isCurrent) {
+                      <tr>
+                        <td data-label="Plan"><b>{{ o.name }}</b></td>
+                        <td data-label="Days" class="num">{{ o.durationDays }}</td>
+                        <td data-label="Progress" class="meter-col"><app-meter [value]="o.progress.completed" [total]="o.progress.total" /></td>
+                        <td class="acts"><button class="btn sm" (click)="makeCurrent(o)">Make current</button> <button class="btn sm danger" (click)="remove(o)">Delete</button></td>
+                      </tr>
+                    }
+                  }
+                </tbody>
+              </table>
+            </div>
+          } @else { <div class="panel-body muted small">This is your only plan.</div> }
+        </section>
       } @else {
+        <app-page-header eyebrow="Plan" title="Preparation plan" />
         <app-empty-state icon="calendar" title="No plan yet" hint="A plan spreads the knowledge base across days, following the skill-matrix order: fundamentals, architecture, cloud, interview scenarios.">
           <a class="btn primary" routerLink="/plan/new">Create a preparation plan</a></app-empty-state>
       }
     </div>`,
   styles: [`
-    .mono { font-family: var(--mono); } .small { font-size: 12.5px; }
-    .done-card { border-color: var(--ok); background: var(--ok-soft); margin-bottom: 14px; }
+    .done-card { border: 1px solid var(--ok); background: var(--ok-soft); border-radius: var(--radius); padding: 10px 14px; margin-bottom: 12px; }
+    .mt-s { margin-top: 6px; }
+    .unsched { display: flex; gap: 6px; align-items: center; margin: 10px 0 0; }
+    .legend { display: flex; gap: 12px; }
+    .sw { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 5px; }
+    .sw.today { background: var(--accent); } .sw.done { background: var(--ready); } .sw.over { background: var(--warn); }
+    .meter-col { width: 34%; }
+    .acts { text-align: right; white-space: nowrap; }
     .weekdays { display: none; }
-    .calendar { display: flex; flex-direction: column; gap: 8px; }
+    .calendar { display: flex; flex-direction: column; gap: 6px; }
     @media (min-width: 768px) {
-      .weekdays { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; margin-bottom: 6px; font: 600 11px var(--mono); text-transform: uppercase; letter-spacing: .1em; color: var(--text-dim); }
-      .calendar { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
-      .day { min-height: 108px; }
+      .weekdays { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; margin-bottom: 6px; font: 600 10.5px var(--mono); text-transform: uppercase; letter-spacing: .1em; color: var(--text-dim); }
+      .calendar { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+      .day { min-height: 104px; }
     }
-    .day { display: flex; flex-direction: column; gap: 6px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; color: var(--text); min-height: 118px; }
-    .day:hover { border-color: var(--border-strong); text-decoration: none; }
+    @media (max-width: 760px) { .meter-col { width: auto; } .acts { text-align: left; } .legend { display: none; } }
+    .day { position: relative; display: flex; flex-direction: column; gap: 5px; background: var(--bg-sunken); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 10px; color: var(--text); font-size: 12.5px;
+      transition: border-color var(--dur-1), background var(--dur-1); }
+    .day:hover { border-color: var(--border-strong); background: var(--bg-hover); text-decoration: none; }
     .day .topics { color: var(--text-muted); flex: 1; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-    .day.today { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
-    .day.done { background: var(--ok-soft); }
+    .day.today { background: var(--bg-card); border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+    .day.done { background: var(--ready-soft); border-color: transparent; }
     .day.skipped { opacity: .55; }
     .day.overdue { border-color: var(--warn); }
   `]

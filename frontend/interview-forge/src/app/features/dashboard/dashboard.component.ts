@@ -1,121 +1,148 @@
 import { DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { Dashboard } from '../../core/models';
+import { Dashboard, OverallProgress } from '../../core/models';
 import { ApiService } from '../../core/services/api.service';
 import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
+import { HeatmapComponent } from '../../shared/ui/heatmap.component';
 import { IconComponent } from '../../shared/ui/icon.component';
+import { MeterComponent } from '../../shared/ui/meter.component';
+import { PageHeaderComponent } from '../../shared/ui/page-header.component';
 import { RingComponent } from '../../shared/ui/ring.component';
 import { SkeletonComponent } from '../../shared/ui/skeleton.component';
+import { StatTileComponent } from '../../shared/ui/stat-tile.component';
 
 @Component({
   selector: 'app-dashboard',
-  imports: [RouterLink, DecimalPipe, RingComponent, IconComponent, SkeletonComponent, EmptyStateComponent],
+  imports: [RouterLink, DecimalPipe, RingComponent, IconComponent, SkeletonComponent, EmptyStateComponent, PageHeaderComponent, StatTileComponent, MeterComponent, HeatmapComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="page">
       @if (data(); as d) {
-        <div class="head">
-          <div class="eyebrow">{{ dateLabel() }}</div>
-          <h1>{{ greeting() }}</h1>
+        <app-page-header [eyebrow]="dateLabel()" [title]="greeting()">
           @if (d.currentPlan; as p) {
-            @if (p.status === 'Completed') {
-              <p>{{ p.name }}: <b>all {{ p.progress.total }} questions completed.</b> <a routerLink="/plan/new">Create your next plan</a></p>
-            } @else {
-              <p>{{ p.name }}: <b>Day {{ p.currentDay }} of {{ p.durationDays }}</b>@if (p.status === 'Paused') { <span class="badge warn">paused</span> }</p>
-            }
-          }
-        </div>
+            <p class="plan-line">
+              @if (p.status === 'Completed') { {{ p.name }}: all {{ p.progress.total }} questions completed. }
+              @else { {{ p.name }} · Day {{ p.currentDay }} of {{ p.durationDays }} @if (p.status === 'Paused') { <span class="badge warn">paused</span> } }
+            </p>
+          } @else { <p class="plan-line">No active plan. Create one to get a daily target.</p> }
+          <div actions>
+            <a class="btn" routerLink="/interview"><app-icon name="play" [size]="16" /> Interview mode</a>
+            @if (d.currentPlan; as p) {
+              @if (p.status === 'Completed') { <a class="btn primary" routerLink="/plan/new">Create next plan</a> }
+              @else { <a class="btn primary" [routerLink]="['/plan', p.id, 'day', p.currentDay]">Open day {{ p.currentDay }}</a> }
+            } @else { <a class="btn primary" routerLink="/plan/new">Create plan</a> }
+          </div>
+        </app-page-header>
 
         @if (d.continue; as c) {
-          <a class="card continue" [routerLink]="['/questions', c.questionId]">
-            <div class="stat-label">{{ c.reason }}</div>
-            <div class="ctext">{{ c.questionText }}</div>
-            <div class="row"><span class="dim">{{ c.topicName }}</span><span class="spacer"></span><span class="btn primary">Continue <app-icon name="chevron-right" [size]="16" /></span></div>
+          <a class="next" [routerLink]="['/questions', c.questionId]">
+            <span class="next-ico" aria-hidden="true"><app-icon name="arrow-right" [size]="18" /></span>
+            <span class="next-txt"><span class="next-lbl">{{ c.reason }} · {{ c.topicName }}</span><span class="next-q">{{ c.questionText }}</span></span>
+            <span class="btn primary sm">Continue</span>
           </a>
         }
 
-        <div class="stats mt">
-          <div class="card"><div class="stat-label">Today</div>
-            <div class="stat-value">{{ d.today?.day?.completed ?? 0 }}<span class="dim"> / {{ d.today?.day?.total ?? 0 }}</span></div>
-            <div class="stat-sub">planned questions</div></div>
-          <div class="card"><div class="stat-label">Overall</div>
-            <div class="stat-value">{{ d.overall.percent | number:'1.0-1' }}%</div>
-            <div class="stat-sub">{{ d.overall.completed }} / {{ d.overall.total }}</div></div>
-          <div class="card"><div class="stat-label">Topics</div>
-            <div class="stat-value">{{ d.topicsCompleted }}<span class="dim"> / {{ d.topicsTotal }}</span></div>
-            <div class="stat-sub">{{ d.questionsRemaining }} questions left</div></div>
-          <div class="card"><div class="stat-label">Streak</div>
-            <div class="stat-value">{{ d.streak }}<span class="dim"> d</span></div>
-            <div class="stat-sub">{{ d.completedToday }} done today</div></div>
+        <div class="tiles">
+          <app-stat-tile label="Today" icon="calendar" [value]="d.today?.day?.completed ?? 0" [total]="d.today?.day?.total ?? 0" sub="planned questions" />
+          <app-stat-tile label="Overall" icon="target" tone="ready" [value]="(d.overall.percent | number:'1.0-1') + '%'" [sub]="d.overall.completed + ' of ' + d.overall.total + ' answered'" link="/progress" />
+          <app-stat-tile label="Topics" icon="hash" [value]="d.topicsCompleted" [total]="d.topicsTotal" [sub]="d.questionsRemaining + ' questions left'" link="/topics" />
+          <app-stat-tile label="Streak" icon="bolt" [value]="d.streak" unit="d" [sub]="d.completedToday + ' done today'" />
         </div>
 
-        <div class="attn mt" aria-label="Needs attention">
-          <a routerLink="/plan" class="chip-card"><b class="warnc">{{ d.overdueItems }}</b> overdue</a>
-          <a routerLink="/review" [queryParams]="{ bucket: 'Due' }" class="chip-card"><b class="infoc">{{ d.dueForReview }}</b> due for review</a>
-          <a routerLink="/review" [queryParams]="{ bucket: 'NeedsReview' }" class="chip-card"><b class="warnc">{{ d.needsReview }}</b> need review</a>
-        </div>
+        <div class="split mt">
+          <div class="stack">
+            <section class="panel" aria-labelledby="today-h">
+              <div class="panel-head"><h2 id="today-h">Today's plan</h2><span class="spacer"></span>
+                @if (d.today; as t) { <span class="dim mono small">{{ t.day.completed }}/{{ t.day.total }}</span> }</div>
+              @if (d.today; as t) {
+                <div class="today">
+                  <app-ring [value]="t.day.completed" [total]="t.day.total" [size]="72" label="Today's completion" />
+                  <ul class="checklist">
+                    @for (g of t.topics; track g.topicId) {
+                      <li [class.done]="g.completed === g.total">
+                        <span class="tick" aria-hidden="true">@if (g.completed === g.total) { <app-icon name="check" [size]="13" /> }</span>
+                        <a [routerLink]="['/topics', g.topicId]">{{ g.topicName }}</a>
+                        <span class="dim small sec">{{ g.sectionName }}</span>
+                        <span class="spacer"></span><span class="dim mono small">{{ g.completed }}/{{ g.total }}</span>
+                      </li>
+                    } @empty { <li class="muted">Nothing scheduled today. A buffer day: catch up on review.</li> }
+                  </ul>
+                </div>
+              } @else {
+                <div class="panel-body"><app-empty-state icon="calendar" title="No plan yet" hint="Create a plan to get a daily target and a checklist here."><a class="btn primary" routerLink="/plan/new">Create plan</a></app-empty-state></div>
+              }
+            </section>
 
-        <div class="card mt">
-          <div class="row"><h2>Today's plan</h2><span class="spacer"></span>
-            @if (d.currentPlan; as p) { <a class="btn sm" [routerLink]="['/plan', p.id, 'day', p.currentDay]">Open day {{ p.currentDay }}</a> }</div>
-          @if (d.today; as t) {
-            <div class="row"><app-ring [value]="t.day.completed" [total]="t.day.total" [size]="64" label="Today's completion" />
-              <span class="muted">{{ t.day.completed }} of {{ t.day.total }} done</span></div>
-            <ul class="topics">
-              @for (g of t.topics; track g.topicId) {
-                <li [class.done]="g.completed === g.total">
-                  <app-icon [name]="g.completed === g.total ? 'check' : 'list'" [size]="16" />
-                  <a [routerLink]="['/topics', g.topicId]">{{ g.topicName }}</a>
-                  <span class="spacer"></span><span class="dim mono">{{ g.completed }}/{{ g.total }}</span>
-                </li>
-              } @empty { <li class="muted">Nothing scheduled today. A buffer day: catch up on review.</li> }
-            </ul>
-          } @else {
-            <app-empty-state icon="calendar" title="No plan yet" hint="Create a plan to get a daily target and a checklist here."><a class="btn primary" routerLink="/plan/new">Create plan</a></app-empty-state>
-          }
-        </div>
+            <section class="panel" aria-labelledby="ready-h">
+              <div class="panel-head"><h2 id="ready-h">Readiness by section</h2><span class="spacer"></span><a class="btn sm ghost" routerLink="/sections">All sections</a></div>
+              <div class="panel-body meters">
+                @for (s of sections(); track s.id) {
+                  <a class="meter-link" [routerLink]="['/sections', s.id]"><app-meter [label]="s.name" [value]="s.progress.completed" [total]="s.progress.total" [review]="s.progress.needsReview" /></a>
+                } @empty { <p class="muted">No sections with questions yet.</p> }
+              </div>
+            </section>
+          </div>
 
-        <h2 class="mt-lg">Progress by section</h2>
-        <div class="rings">
-          @for (s of d.sections; track s.id) {
-            @if (s.progress.total > 0) {
-              <a class="ringcard" [routerLink]="['/sections', s.id]">
-                <app-ring [value]="s.progress.completed" [total]="s.progress.total" [size]="52" [label]="s.name + ' progress'" />
-                <span class="rname">{{ s.name }}<br><span class="dim small">{{ s.progress.completed }} / {{ s.progress.total }}</span></span>
-              </a>
-            }
-          }
+          <aside class="rail-col" aria-label="Activity and attention">
+            <section class="panel" aria-labelledby="act-h">
+              <div class="panel-head"><h2 id="act-h">Activity</h2><span class="spacer"></span><span class="dim small">last 30 days</span></div>
+              <div class="panel-body">
+                @if (activity(); as a) { <app-heatmap [activity]="a.activity" [today]="a.localDate" [weeks]="5" [cell]="22" /> }
+                @else { <div class="heat-ph" aria-hidden="true"></div> }
+              </div>
+            </section>
+            <section class="panel" aria-labelledby="attn-h">
+              <div class="panel-head"><h2 id="attn-h">Needs attention</h2></div>
+              <ul class="attn">
+                <li><a routerLink="/plan"><app-icon name="clock" [size]="16" /><span>Overdue plan items</span><b [class.warnc]="d.overdueItems > 0">{{ d.overdueItems }}</b></a></li>
+                <li><a routerLink="/review" [queryParams]="{ bucket: 'Due' }"><app-icon name="refresh" [size]="16" /><span>Due for review</span><b [class.infoc]="d.dueForReview > 0">{{ d.dueForReview }}</b></a></li>
+                <li><a routerLink="/review" [queryParams]="{ bucket: 'NeedsReview' }"><app-icon name="flag" [size]="16" /><span>Marked needs review</span><b [class.warnc]="d.needsReview > 0">{{ d.needsReview }}</b></a></li>
+              </ul>
+            </section>
+          </aside>
         </div>
       } @else if (error()) { <div class="error-box" role="alert">{{ error() }}</div> }
       @else { <app-skeleton kind="stats" [count]="3" /> }
     </div>`,
   styles: [`
-    .head p { margin: 0; color: var(--text-muted); }
-    .continue { display: flex; flex-direction: column; gap: 10px; color: var(--text); border-color: var(--accent); }
-    .continue:hover { text-decoration: none; background: var(--bg-hover); }
-    .ctext { font-size: var(--fs-lg, 1.2rem); font-weight: 500; }
-    .stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
-    @media (min-width: 900px) { .stats { grid-template-columns: repeat(4, 1fr); } }
-    .attn { display: flex; gap: 8px; flex-wrap: wrap; }
-    .chip-card { display: inline-flex; gap: 6px; align-items: baseline; padding: 8px 14px; border: 1px solid var(--border-strong); border-radius: 999px; color: var(--text); background: var(--bg-card); min-height: 40px; align-items: center; }
-    .chip-card:hover { text-decoration: none; border-color: var(--accent); }
-    .warnc { color: var(--warn); } .infoc { color: var(--info); }
-    .topics { list-style: none; padding: 0; margin: 14px 0 0; }
-    .topics li { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); align-items: center; }
-    .topics li:last-child { border-bottom: none; }
-    .topics li.done { color: var(--ok); } .topics li.done a { color: var(--text-muted); }
-    .mono { font-family: var(--mono); font-size: 13px; } .small { font-size: 12px; }
-    .rings { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr)); gap: 10px; }
-    .ringcard { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-card); color: var(--text); }
-    .ringcard:hover { text-decoration: none; border-color: var(--border-strong); background: var(--bg-hover); }
-    .rname { font-size: 14px; min-width: 0; overflow-wrap: anywhere; }
+    .plan-line { margin: 4px 0 0; color: var(--text-muted); font-size: 13.5px; }
+    .next { display: flex; align-items: center; gap: 12px; padding: 10px 12px 10px 14px; margin-bottom: 12px; border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 0 var(--radius) var(--radius) 0;
+      background: var(--bg-card); color: var(--text); transition: background var(--dur-1); }
+    .next:hover { background: var(--bg-hover); text-decoration: none; }
+    .next-ico { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 8px; background: var(--accent-soft); color: var(--accent-text); flex: none; }
+    .next-txt { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+    .next-lbl { font: 600 10.5px/1.4 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--text-dim); }
+    .next-q { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .today { display: flex; gap: 18px; align-items: flex-start; padding: 14px; }
+    .checklist { list-style: none; margin: 0; padding: 0; flex: 1; min-width: 0; }
+    .checklist li { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 13.5px; min-width: 0; }
+    .checklist li:last-child { border-bottom: 0; }
+    .checklist a { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .checklist .sec { white-space: nowrap; }
+    .checklist li.done a { color: var(--text-dim); text-decoration: line-through; text-decoration-color: var(--border-strong); }
+    .tick { display: grid; place-items: center; width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid var(--border-strong); flex: none; }
+    li.done .tick { background: var(--ready); border-color: var(--ready); color: var(--bg-card); }
+    .meters { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); gap: 14px 24px; }
+    .meter-link { display: block; color: inherit; padding: 4px; margin: -4px; border-radius: var(--radius-sm); }
+    .meter-link:hover { background: var(--bg-hover); text-decoration: none; }
+    .attn { list-style: none; margin: 0; padding: 4px; }
+    .attn a { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--radius-sm); color: var(--text-muted); font-size: 13.5px; }
+    .attn a:hover { background: var(--bg-hover); color: var(--text); text-decoration: none; }
+    .attn span { flex: 1; }
+    .attn b { font: 600 13px var(--mono); color: var(--text-dim); }
+    .warnc { color: var(--warn) !important; } .infoc { color: var(--info) !important; }
+    .heat-ph { height: 180px; border-radius: var(--radius-sm); background: var(--heat-0); opacity: .5; }
+    @media (max-width: 600px) { .today { flex-direction: column; align-items: stretch; } .today app-ring { align-self: center; } .checklist .sec { display: none; } }
   `]
 })
 export class DashboardComponent {
   private api = inject(ApiService);
   readonly data = signal<Dashboard | null>(null);
+  readonly activity = signal<OverallProgress | null>(null);
   readonly error = signal<string | null>(null);
+  /** Sections that have questions, in curriculum order. */
+  readonly sections = computed(() => (this.data()?.sections ?? []).filter(s => s.progress.total > 0));
   /** "Today" comes from the server so it matches the account's time zone. */
   readonly dateLabel = computed(() => {
     const d = this.data()?.localDate;
@@ -129,5 +156,7 @@ export class DashboardComponent {
 
   constructor() {
     this.api.dashboard().subscribe({ next: d => this.data.set(d), error: e => this.error.set(e.message) });
+    // the heatmap is secondary: load it in parallel and never toast if it fails
+    this.api.overallProgressQuiet().subscribe({ next: p => this.activity.set(p), error: () => {} });
   }
 }

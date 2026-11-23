@@ -3,22 +3,24 @@ import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@ang
 import { FormsModule } from '@angular/forms';
 import { AuditEntry } from '../../core/models';
 import { ApiService } from '../../core/services/api.service';
+import { IconComponent } from '../../shared/ui/icon.component';
 
 const ACTIONS = ['user.create', 'user.update', 'user.role_change', 'user.disable', 'user.enable', 'user.password_reset', 'user.sessions_revoked', 'user.delete',
   'settings.registration_change', 'bootstrap.recovery', 'content.force_delete', 'seed.restore'];
 
 @Component({
   selector: 'app-admin-audit',
-  imports: [FormsModule, DatePipe],
+  imports: [FormsModule, DatePipe, IconComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="row"><h1>Audit log</h1><span class="spacer"></span><button class="btn sm" (click)="exportCsv()" [disabled]="!items().length">Export loaded rows (CSV)</button></div>
-    <div class="row mt">
+    <div class="row head"><div><h1>Audit log</h1><p class="muted sub">Every administrator change, written in the same transaction as the change itself.</p></div><span class="spacer"></span>
+      <button class="btn" (click)="exportCsv()" [disabled]="!items().length"><app-icon name="upload" [size]="14" /> Export loaded rows (CSV)</button></div>
+    <div class="toolbar">
       <select name="action" [(ngModel)]="action" (ngModelChange)="reload()" aria-label="Action">
         <option value="">All actions</option>@for (a of actions; track a) { <option [value]="a">{{ a }}</option> }
       </select>
     </div>
-    <div class="table-wrap mt">
+    <div class="panel"><div class="table-wrap">
       <table class="data stack-sm">
         <thead><tr><th>When</th><th>Action</th><th>By</th><th>Target</th><th>Detail</th></tr></thead>
         <tbody>
@@ -28,10 +30,11 @@ const ACTIONS = ['user.create', 'user.update', 'user.role_change', 'user.disable
           } @empty { <tr><td colspan="5" class="muted">No entries.</td></tr> }
         </tbody>
       </table>
-    </div>
+    </div></div>
     <div class="row mt"><span class="muted" role="status">{{ items().length }} of {{ total() }} entries</span><span class="spacer"></span>
       @if (items().length < total()) { <button class="btn sm" (click)="more()">Load more</button> }</div>`,
-  styles: [`select { width: auto; } .small { font-size: 12px; }`]
+  styles: [`select { width: auto; } .small { font-size: 12px; } td code { white-space: pre-wrap; overflow-wrap: anywhere; }
+    .head { align-items: flex-end; margin-bottom: 14px; } .head h1 { margin: 0; } .sub { margin: 2px 0 0; font-size: 13px; }`]
 })
 export class AdminAuditComponent implements OnInit {
   private api = inject(ApiService);

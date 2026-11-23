@@ -37,7 +37,20 @@ const PATHS: Record<string, string> = {
   more: 'M5 12h.5M12 12h.5M19 12h.5',
   note: 'M5 3h14v18H5zM9 8h6M9 12h6M9 16h3',
   flag: 'M5 21V4M5 4h12l-2 4 2 4H5',
-  folder: 'M3 6h6l2 2h10v11H3z'
+  folder: 'M3 6h6l2 2h10v11H3z',
+  grid: 'M4 4h7v7H4zM13 4h7v4h-7zM13 10h7v10h-7zM4 13h7v7H4z',
+  layers: 'M12 3l9 5-9 5-9-5zM3 13l9 5 9-5',
+  hash: 'M5 9h15M4 15h15M10 4L8 20M16 4l-2 16',
+  target: 'M12 21a9 9 0 100-18 9 9 0 000 18zM12 16a4 4 0 100-8 4 4 0 000 8zM12 12h.01',
+  inbox: 'M3 13l3-8h12l3 8v6H3zM3 13h5l1 3h6l1-3h5',
+  history: 'M3 12a9 9 0 103-6.7M3 4v5h5M12 8v4l3 2',
+  upload: 'M12 16V4M7 9l5-5 5 5M4 17v3h16v-3',
+  logout: 'M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10',
+  sidebar: 'M4 4h16v16H4zM9 4v16',
+  'plus-square': 'M4 4h16v16H4zM12 8v8M8 12h8',
+  clock: 'M12 21a9 9 0 100-18 9 9 0 000 18zM12 7v5l3 2',
+  'arrow-right': 'M5 12h14M13 6l6 6-6 6',
+  'external': 'M14 4h6v6M20 4l-9 9M18 14v6H4V6h6'
 };
 
 @Component({

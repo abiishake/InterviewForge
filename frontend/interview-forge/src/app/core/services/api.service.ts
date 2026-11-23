@@ -82,7 +82,8 @@ export class ApiService {
   algorithms(): Observable<AlgorithmSummary[]> { return this.http.get<AlgorithmSummary[]>(`${this.base}/algorithms`); }
   algorithm(slug: string): Observable<AlgorithmDetail> { return this.http.get<AlgorithmDetail>(`${this.base}/algorithms/${encodeURIComponent(slug)}`); }
 
-  reviewOverview(): Observable<ReviewOverview> { return this.http.get<ReviewOverview>(`${this.base}/review`); }
+  reviewOverview(quiet = false): Observable<ReviewOverview> { return this.http.get<ReviewOverview>(`${this.base}/review`, quiet ? { context: new HttpContext().set(SKIP_ERROR_TOAST, true) } : {}); }
+  overallProgressQuiet(): Observable<OverallProgress> { return this.http.get<OverallProgress>(`${this.base}/progress`, { context: new HttpContext().set(SKIP_ERROR_TOAST, true) }); }
   reviewQueue(bucket: ReviewBucket, page = 1, pageSize = 50): Observable<Paged<QuestionSummary>> {
     return this.http.get<Paged<QuestionSummary>>(`${this.base}/review/queue`, { params: this.params({ bucket, page, pageSize }) });
   }
