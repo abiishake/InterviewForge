@@ -26,7 +26,7 @@ The scope gaps found in a follow-up review (generics variance, XML serialization
 
 ## Verification status
 
-- `node scripts/validate-content.mjs`: all 121 new questions pass the structural checks (ids, topic ids, 3+ keywords, 2+ follow-ups, a code example and a *Real-world example* lead-in). It still reports six **pre-existing** findings in `azure.md`, `dotnet-gaps.md`, `kubernetes-aks.md`, `realtime-frontend.md` and `testing-tools.md` (answers without the *Real-world example* lead-in); they are untouched by this update.
+- `node scripts/validate-content.mjs`: passes (`content OK`). Six older answers in `azure.md`, `dotnet-gaps.md`, `kubernetes-aks.md`, `realtime-frontend.md` and `testing-tools.md` lacked the *Real-world example* lead-in that CI requires; a one-line lead-in was added to each (answer text otherwise unchanged).
 - A script check confirmed that every new `topic_id` resolves through the overrides to an existing matrix topic and every new matrix topic has questions.
 - **No .NET SDK was available while writing this update: the C# importer and test suite were not run.** The change is data-only, but run `dotnet test` (or `docker compose build`, which runs the tests) before deploying.
 - Code samples are illustrative and were **not compiled**. API shapes for Microsoft.Extensions.AI, MEVD, MEDI, the MCP C# SDK, Microsoft Agent Framework and the evaluation libraries were checked against the Microsoft Learn pages, but those libraries are evolving (some prerelease): pin versions and re-check signatures when you copy a sample.

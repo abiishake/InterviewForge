@@ -16,6 +16,9 @@ How do xUnit and NUnit differ, and how do you write parameterized and async test
 **Answer**
 
 Both are mature .NET test frameworks. **xUnit** creates a new class instance per test (isolation by default), uses constructor/`IDisposable` for setup and teardown, `IClassFixture<T>`/`ICollectionFixture<T>` for shared expensive context, and `[Fact]`/`[Theory]`. **NUnit** reuses one instance per fixture, uses `[SetUp]`/`[TearDown]`/`[OneTimeSetUp]`, `[Test]` and `[TestCase]`. Parameterized tests run one body over many inputs; async tests simply return `Task` (never `async void`).
+
+Real-world example: a parameterised xUnit theory and an async fact.
+
 ```csharp
 public class PriceTests
 {
@@ -139,6 +142,9 @@ How do you run EF Core integration tests against a real database with Testcontai
 **Answer**
 
 In-memory providers hide SQL behaviour (constraints, transactions, collation), so run tests against the real engine in a throwaway container with **Testcontainers**: start `MsSqlContainer` once per collection fixture, apply migrations, and give each test isolation by wrapping it in a transaction rolled back at the end, or resetting data with **Respawn**. Combine with `WebApplicationFactory<Program>`, replacing the connection string in `ConfigureWebHost`. Costs: slower startup and a Docker requirement in CI, mitigated by one container per test run and parallelism across collections.
+
+Real-world example: a Testcontainers SQL Server fixture shared across tests.
+
 ```csharp
 public sealed class DbFixture : IAsyncLifetime
 {

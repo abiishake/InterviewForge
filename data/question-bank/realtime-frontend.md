@@ -57,6 +57,9 @@ How do you scale SignalR across multiple servers and secure it?
 **Answer**
 
 Each client connection lives on one server, so a message sent from server A cannot reach a client on server B without a **backplane**: Redis backplane or the managed **Azure SignalR Service**, which also offloads the connections (thousands per unit). Without WebSockets-only negotiation you need sticky sessions; with `SkipNegotiation` and WebSockets (or Azure SignalR) you do not. Security: authenticate via cookie or JWT (browsers cannot set headers on WebSockets, so the token travels in the `access_token` query string and is read in `OnMessageReceived`), authorize hubs and methods with policies, validate input, limit message size and connections, and use groups for tenant isolation.
+
+Real-world example: scaling a SignalR hub across instances with Azure SignalR Service.
+
 ```csharp
 builder.Services.AddSignalR().AddAzureSignalR();
 app.MapHub<NotificationsHub>("/hubs/notifications").RequireAuthorization();

@@ -639,6 +639,8 @@ Write and explain a KQL query to find the slowest operations and failure rate in
 
 **Answer**
 
+Real-world example: a KQL query for the slowest operations with their failure rate.
+
 ```kusto
 requests
 | where timestamp > ago(1h)

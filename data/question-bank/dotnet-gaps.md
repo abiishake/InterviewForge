@@ -284,6 +284,9 @@ What are CTEs and recursive CTEs in SQL Server, and when do you use them over te
 **Answer**
 
 A **Common Table Expression** (`WITH name AS (...)`) is a named, query-scoped result set that makes complex queries readable and can be referenced several times, but it is *not materialised* by default: it is expanded inline like a view, so it does not cache results. **Recursive CTEs** union an anchor query with a recursive member to walk hierarchies (org charts, bill of materials) and need `OPTION (MAXRECURSION n)` for deep trees.
+
+Real-world example: a recursive CTE that walks a category tree.
+
 ```sql
 WITH Tree AS (
     SELECT Id, ParentId, Name, 0 AS Depth FROM Category WHERE ParentId IS NULL

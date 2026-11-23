@@ -271,6 +271,9 @@ How do ConfigMaps and Secrets inject configuration into a .NET container?
 **Answer**
 
 A **ConfigMap** holds non-sensitive key-values or files; a **Secret** holds sensitive values (base64-encoded, optionally encrypted at rest, ideally sourced from Key Vault). Inject them as environment variables or mounted volumes. ASP.NET Core reads env vars with `__` as the hierarchy separator, so `ConnectionStrings__Default` maps to `ConnectionStrings:Default`. Environment variables do not update in running pods, while mounted files do refresh and can be reloaded with `reloadOnChange`. Keep per-environment values in the manifest overlay (Kustomize/Helm), and roll pods (checksum annotation) when config changes.
+
+Real-world example: injecting a Secret and a ConfigMap value as environment variables.
+
 ```yaml
 env:
   - name: ConnectionStrings__Default
