@@ -1,7 +1,7 @@
 import { Location } from '@angular/common';
-import { ChangeDetectionStrategy, Component, HostListener, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, HostListener, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { NavigationCancel, NavigationEnd, NavigationError, NavigationStart, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
 import { AuthService } from './core/services/auth.service';
 import { ThemeService } from './core/services/theme.service';
@@ -30,6 +30,7 @@ const GROUPS: NavGroup[] = [
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <a class="skip-link" href="#main" (click)="focusMain($event)">Skip to content</a>
+    <div class="navbar-progress" [class.active]="navigating()" [class.done]="navDone()" aria-hidden="true"><span></span></div>
     @if (showShell()) {
     <div class="shell" [class.nav-open]="navOpen()" [class.immersive]="immersive()" [class.notabs]="immersive() || questionPage()">
       <header class="topbar">
@@ -50,7 +51,7 @@ const GROUPS: NavGroup[] = [
         <button class="iconbtn" (click)="palette.open()" aria-label="Search"><app-icon name="search" /></button>
       </nav>
 
-      @if (navOpen()) { <div class="backdrop" (click)="navOpen.set(false)" aria-hidden="true"></div> }
+      <div class="backdrop" (click)="navOpen.set(false)" aria-hidden="true"></div>
       <aside class="sidebar" id="primary-nav">
         <a routerLink="/" class="brand desktop-brand"><span class="mark">F</span><span>INTERVIEW<b>FORGE</b></span></a>
         @if (auth.user(); as account) {
@@ -130,9 +131,21 @@ const GROUPS: NavGroup[] = [
     main:focus { outline: none; }
     .iconbtn { display: inline-grid; place-items: center; min-width: 44px; min-height: 44px; background: transparent; color: var(--text); border: 1px solid transparent; border-radius: var(--radius-sm); cursor: pointer; }
     .iconbtn:hover { background: var(--bg-hover); }
+    nav a { transition: background var(--dur-1), color var(--dur-1), box-shadow var(--dur-2) var(--ease-out); }
+    main { view-transition-name: if-main; }
     .topbar, .rail, .tabbar, .backdrop { display: none; }
+
+    /* thin top progress bar while a route (lazy chunk + resolvers) is loading; it only appears if navigation takes >120ms */
+    .navbar-progress { position: fixed; inset: 0 0 auto 0; height: 3px; z-index: 100; pointer-events: none; opacity: 0; transition: opacity .2s .1s; }
+    .navbar-progress span { display: block; height: 100%; width: 100%; background: var(--accent); box-shadow: 0 0 8px var(--accent); transform-origin: left; transform: scaleX(0); }
+    .navbar-progress.active { opacity: 1; transition-delay: .12s; }
+    .navbar-progress.active span { transform: scaleX(.85); transition: transform 8s cubic-bezier(.1, .7, .2, 1) .12s; }
+    .navbar-progress.done span { transform: scaleX(1); transition: transform .15s ease-out; }
+
     .toasts { position: fixed; right: 18px; bottom: 18px; display: flex; flex-direction: column; gap: 8px; z-index: 50; }
-    .toast { background: var(--bg-card); border: 1px solid var(--border-strong); border-left: 3px solid var(--info); padding: 10px 14px; border-radius: var(--radius-sm); box-shadow: var(--shadow); max-width: 360px; font-size: 14px; display: flex; align-items: center; gap: 10px; }
+    .toast { background: var(--bg-card); border: 1px solid var(--border-strong); border-left: 3px solid var(--info); padding: 10px 14px; border-radius: var(--radius-sm); box-shadow: var(--shadow); max-width: 360px; font-size: 14px; display: flex; align-items: center; gap: 10px;
+      animation: toast-in var(--dur-2) var(--ease-out); }
+    @keyframes toast-in { from { opacity: 0; transform: translateY(10px) scale(.98); } }
     .toast-text { flex: 1; min-width: 0; }
     .toast-btn { background: none; border: 0; color: var(--accent-text); font: 600 13px var(--font); cursor: pointer; padding: 6px 4px; min-height: 32px; }
     .toast-close { background: none; border: 0; color: var(--text-muted); font: 20px/1 var(--font); cursor: pointer; padding: 4px 8px; min-width: 32px; min-height: 32px; border-radius: var(--radius-sm); }
@@ -144,11 +157,14 @@ const GROUPS: NavGroup[] = [
       .shell { grid-template-columns: var(--rail-w) minmax(0, 1fr); }
       .rail { display: flex; flex-direction: column; align-items: center; gap: 6px; position: sticky; top: 0; height: 100dvh; padding: 10px 0; background: var(--bg-elev); border-right: 1px solid var(--border); }
       .rail .spacer { flex: 1; }
-      .railink { display: grid; place-items: center; width: 48px; height: 48px; border-radius: var(--radius-sm); color: var(--text-muted); }
+      .railink { display: grid; place-items: center; width: 48px; height: 48px; border-radius: var(--radius-sm); color: var(--text-muted); transition: background var(--dur-1), color var(--dur-1), transform var(--dur-1) var(--ease-out); }
       .railink:hover, .railink.active { background: var(--accent-soft); color: var(--text); text-decoration: none; }
-      .sidebar { position: fixed; inset: 0 auto 0 0; z-index: 41; width: min(84vw, 300px); transform: translateX(-100%); visibility: hidden; transition: transform .2s, visibility .2s; }
-      .nav-open .sidebar { transform: none; visibility: visible; box-shadow: var(--shadow); }
-      .backdrop { display: block; position: fixed; inset: 0; z-index: 40; background: rgb(0 0 0 / .45); }
+      .railink:active { transform: scale(.92); }
+      .sidebar { position: fixed; inset: 0 auto 0 0; z-index: 41; width: min(84vw, 300px); transform: translateX(-100%); visibility: hidden; overscroll-behavior: contain;
+        transition: transform .28s var(--ease-out), visibility 0s .28s, box-shadow .28s; }
+      .nav-open .sidebar { transform: none; visibility: visible; box-shadow: var(--shadow); transition: transform .28s var(--ease-out), visibility 0s, box-shadow .28s; }
+      .backdrop { display: block; position: fixed; inset: 0; z-index: 40; background: rgb(0 0 0 / .45); opacity: 0; pointer-events: none; transition: opacity .28s var(--ease-out); }
+      .nav-open .backdrop { opacity: 1; pointer-events: auto; }
       .desktop-brand { display: flex; }
     }
     /* xs/sm: top bar + bottom tab bar */
@@ -161,8 +177,16 @@ const GROUPS: NavGroup[] = [
       .shell.immersive .topbar { display: none; }
       .tabbar { display: flex; position: fixed; inset: auto 0 0 0; z-index: 35; height: calc(var(--tab-h) + var(--safe-bottom)); padding-bottom: var(--safe-bottom); background: var(--bg-elev); border-top: 1px solid var(--border); }
       .shell.notabs .tabbar { display: none; }
-      .tabbar a, .tabbar button { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 6px 0; border: 0; background: transparent; color: var(--text-muted); font: 500 11px var(--font); cursor: pointer; border-radius: 0; }
+      .tabbar a, .tabbar button { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 6px 0; border: 0; background: transparent; color: var(--text-muted); font: 500 11px var(--font); cursor: pointer; border-radius: 0;
+        transition: color var(--dur-1), box-shadow var(--dur-2) var(--ease-out); }
+      .tabbar a app-icon, .tabbar button app-icon { transition: transform var(--dur-1) var(--ease-out); }
+      .tabbar a:active app-icon, .tabbar button:active app-icon { transform: scale(.86); }
       .tabbar a.active { color: var(--accent-text); box-shadow: inset 0 2px 0 var(--accent); background: transparent; }
+      .tabbar a.active app-icon { transform: translateY(-1px); }
+      /* translucent chrome so content is felt scrolling underneath */
+      @supports (backdrop-filter: blur(1px)) {
+        .topbar, .tabbar { background: color-mix(in srgb, var(--bg-elev) 82%, transparent); backdrop-filter: saturate(1.6) blur(14px); -webkit-backdrop-filter: saturate(1.6) blur(14px); }
+      }
       .sidebar { top: 0; bottom: 0; }
       .desktop-brand { display: none; }
       .toasts { left: 12px; right: 12px; }
@@ -193,12 +217,31 @@ export class AppComponent {
     return path.split('/').filter(Boolean).length >= 2;
   });
 
+  /** True while a navigation is in flight; drives the top progress bar. */
+  readonly navigating = signal(false);
+  /** Briefly true after a navigation settles so the bar can finish its sweep before fading. */
+  readonly navDone = signal(false);
+  private doneTimer?: ReturnType<typeof setTimeout>;
+
   constructor() {
+    this.router.events.subscribe(e => {
+      if (e instanceof NavigationStart) {
+        clearTimeout(this.doneTimer);
+        this.navDone.set(false);
+        this.navigating.set(true);
+      } else if (e instanceof NavigationEnd || e instanceof NavigationCancel || e instanceof NavigationError) {
+        this.navigating.set(false);
+        this.navDone.set(true);
+        this.doneTimer = setTimeout(() => this.navDone.set(false), 350);
+      }
+    });
     this.router.events.pipe(filter(e => e instanceof NavigationEnd)).subscribe(e => {
       this.navOpen.set(false);
       this.url.set((e as NavigationEnd).urlAfterRedirects);
       queueMicrotask(() => document.getElementById('main')?.focus({ preventScroll: true }));
     });
+    // Lock page scroll behind the open navigation drawer so swipes don't scroll the content underneath.
+    effect(() => document.documentElement.classList.toggle('nav-locked', this.navOpen()));
   }
 
   @HostListener('document:keydown.escape')

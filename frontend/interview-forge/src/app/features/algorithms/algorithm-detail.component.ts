@@ -6,10 +6,11 @@ import { AlgorithmDetail } from '../../core/models';
 import { ApiService } from '../../core/services/api.service';
 import { MarkdownComponent } from '../../shared/components/markdown.component';
 import { TabListDirective } from '../../shared/ui/tab-list.directive';
+import { SkeletonComponent } from '../../shared/ui/skeleton.component';
 
 @Component({
   selector: 'app-algorithm-detail',
-  imports: [FeedbackFormComponent, RouterLink, MarkdownComponent, TabListDirective],
+  imports: [FeedbackFormComponent, RouterLink, MarkdownComponent, TabListDirective, SkeletonComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="page narrow">
@@ -41,7 +42,7 @@ import { TabListDirective } from '../../shared/ui/tab-list.directive';
           <span class="spacer"></span>
           @if (a.nextSlug) { <a class="btn primary" [routerLink]="['/algorithms', a.nextSlug]">Next →</a> }
         </div>
-      } @else { <div class="loading">Loading…</div> }
+      } @else { <app-skeleton kind="detail" /> }
     </div>`,
   styles: [`.narrow { max-width: 920px; } .phone-only { display: none; }
     @media (max-width: 767px) { .phone-only { display: flex; } .off { display: none; } }`]

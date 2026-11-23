@@ -33,6 +33,12 @@
   --info-soft: light-dark(#dcecfb, rgba(90, 169, 230, .14));
   --code-bg: light-dark(#f3f4f6, #0a0e14);
   --shadow: 0 8px 24px -12px light-dark(rgba(0, 0, 0, .35), rgba(0, 0, 0, .6));
+  --shadow-lift: 0 10px 28px -14px light-dark(rgba(0, 0, 0, .3), rgba(0, 0, 0, .7));
+  /* motion: one short, one medium duration and a single deceleration curve used everywhere */
+  --ease-out: cubic-bezier(.2, .8, .2, 1);
+  --dur-1: .12s; --dur-2: .22s;
+  /* fluid spacing: page gutters scale with the viewport instead of jumping at breakpoints */
+  --gutter: clamp(16px, 3.2vw, 32px);
 }
 :root[data-theme="light"] { color-scheme: light; }
 :root[data-theme="dark"] { color-scheme: dark; }
@@ -42,16 +48,22 @@
 
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
-body { min-height: 100dvh; background: var(--bg); color: var(--text); font: 15px/1.6 var(--font); -webkit-font-smoothing: antialiased; }
+/* stable gutter: pages that gain or lose a scrollbar do not shift sideways */
+html { scrollbar-gutter: stable; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body { min-height: 100dvh; background: var(--bg); color: var(--text); font: 15px/1.6 var(--font); -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; }
+/* removes the double-tap-zoom delay so taps respond immediately */
+a, button, input, select, textarea, label, summary, [role="button"], [role="option"], [role="menuitem"] { touch-action: manipulation; }
 a { color: var(--accent-text); text-decoration: none; }
 a:hover { text-decoration: underline; }
 h1, h2, h3, h4 { line-height: 1.25; margin: 0 0 .5em; font-weight: 600; letter-spacing: -.01em; }
-h1 { font-size: 1.6rem; } h2 { font-size: 1.25rem; } h3 { font-size: 1.05rem; }
+h1 { font-size: clamp(1.35rem, 1.1rem + 1vw, 1.6rem); } h2 { font-size: clamp(1.12rem, 1rem + .5vw, 1.25rem); } h3 { font-size: 1.05rem; }
+h1, h2, h3 { text-wrap: balance; }
+p { text-wrap: pretty; }
 code, pre, kbd { font-family: var(--mono); font-size: .88em; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* layout helpers */
-.page { max-width: 1100px; margin: 0 auto; padding: 28px 32px 64px; }
+.page { max-width: 1100px; margin: 0 auto; padding: clamp(20px, 2.5vw, 28px) var(--gutter) clamp(48px, 6vw, 64px); }
 .page-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 22px; flex-wrap: wrap; }
 .page-header p { margin: 0; color: var(--text-muted); }
 .eyebrow { font: 600 11px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 8px; }
@@ -69,8 +81,10 @@ code, pre, kbd { font-family: var(--mono); font-size: .88em; }
 
 /* cards */
 .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; }
-.card.link { display: block; color: inherit; transition: border-color .15s, background .15s; }
+.card.link { display: block; color: inherit; transition: border-color var(--dur-1), background var(--dur-1), transform var(--dur-2) var(--ease-out), box-shadow var(--dur-2) var(--ease-out); }
 .card.link:hover { border-color: var(--border-strong); background: var(--bg-hover); text-decoration: none; }
+@media (hover: hover) { .card.link:hover { transform: translateY(-2px); box-shadow: var(--shadow-lift); } }
+.card.link:active { transform: translateY(0) scale(.99); transition-duration: var(--dur-1); }
 .card h3 { margin-bottom: 4px; }
 .stat-label { font: 600 11px/1 var(--mono); text-transform: uppercase; letter-spacing: .1em; color: var(--text-dim); }
 .stat-value { font: 600 1.7rem/1.2 var(--mono); margin-top: 8px; }
@@ -78,8 +92,11 @@ code, pre, kbd { font-family: var(--mono); font-size: .88em; }
 
 /* buttons */
 .btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-strong);
-  background: var(--bg-elev); color: var(--text); font: 500 14px/1.3 var(--font); cursor: pointer; transition: background .15s, border-color .15s; white-space: nowrap; }
+  background: var(--bg-elev); color: var(--text); font: 500 14px/1.3 var(--font); cursor: pointer; white-space: nowrap; user-select: none;
+  transition: background var(--dur-1), border-color var(--dur-1), color var(--dur-1), filter var(--dur-1), transform var(--dur-1) var(--ease-out); }
 .btn:hover:not(:disabled) { background: var(--bg-hover); text-decoration: none; }
+/* tactile press feedback */
+.btn:active:not(:disabled) { transform: scale(.97); }
 .btn:disabled { opacity: .5; cursor: not-allowed; }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
 .btn.primary:hover:not(:disabled) { filter: brightness(1.08); background: var(--accent); }
@@ -95,9 +112,13 @@ code, pre, kbd { font-family: var(--mono); font-size: .88em; }
 label { display: block; font-size: 13px; font-weight: 500; color: var(--text-muted); margin-bottom: 5px; }
 input:not([type]), input[type=email], input[type=password], input[type=text], input[type=number], input[type=url], input[type=search], input[type=date], select, textarea {
   width: 100%; background: var(--bg); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); color: var(--text);
-  padding: 8px 10px; font: 14px/1.4 var(--font); }
-textarea { font-family: var(--mono); font-size: 13px; resize: vertical; min-height: 120px; }
-input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
+  padding: 8px 10px; font: 14px/1.4 var(--font); transition: border-color var(--dur-1), box-shadow var(--dur-1); }
+textarea { font-family: var(--mono); font-size: 13px; resize: vertical; min-height: 120px; field-sizing: content; max-height: 70vh; }
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+/* iOS zooms the page when a focused field is under 16px; keep fields at 16px on touch screens */
+@media (pointer: coarse) {
+  input:not([type=checkbox]):not([type=radio]), select, textarea { font-size: 16px; }
+}
 .field { margin-bottom: 14px; }
 .field-error { color: var(--danger); font-size: 12px; margin-top: 4px; }
 .checkbox { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--text); }
@@ -114,13 +135,21 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 
 /* tabs / filters */
 .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 16px; flex-wrap: wrap; }
-.tabs button { background: none; border: none; color: var(--text-muted); padding: 8px 14px; font: 500 14px var(--font); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tabs button { background: none; border: none; color: var(--text-muted); padding: 8px 14px; font: 500 14px var(--font); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color var(--dur-1), border-color var(--dur-2) var(--ease-out); }
+.tabs button:hover { color: var(--text); }
 .tabs button.active { color: var(--text); border-bottom-color: var(--accent); }
+/* on phones tabs scroll sideways in one line instead of wrapping into a ragged block */
+@media (max-width: 767px) {
+  .tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; scroll-snap-type: x proximity; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tabs button { flex: none; scroll-snap-align: start; }
+}
 
 /* question list */
 .qlist { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
 .qlist li + li { border-top: 1px solid var(--border); }
-.qlist a { display: flex; gap: 12px; align-items: flex-start; padding: 12px 16px; color: var(--text); }
+.qlist a { display: flex; gap: 12px; align-items: flex-start; padding: 12px 16px; color: var(--text); transition: background var(--dur-1); }
+.qlist a:active { background: var(--accent-soft); }
 .qlist a:hover { background: var(--bg-hover); text-decoration: none; }
 .qlist .num { font: 12px/1.9 var(--mono); color: var(--text-dim); min-width: 28px; }
 .qlist .qtext { flex: 1; }
@@ -182,7 +211,6 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .loading { color: var(--text-dim); font: 13px var(--mono); padding: 24px 0; }
 
 @media (max-width: 760px) {
-  .page { padding: 20px 16px 48px; }
   .grid-2 { grid-template-columns: 1fr; }
 }
 
@@ -195,8 +223,11 @@ table.data { width: 100%; border-collapse: collapse; font-size: 14px; }
 table.data th, table.data td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
 table.data th { font: 600 11px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--text-dim); }
 table.data tbody tr:hover { background: var(--bg-hover); }
-.chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
-.chips a, .chips button { flex: none; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--border-strong); background: var(--bg-elev); color: var(--text-muted); font: 500 14px var(--font); cursor: pointer; }
+.chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; overscroll-behavior-x: contain; }
+.chips a, .chips button { flex: none; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--border-strong); background: var(--bg-elev); color: var(--text-muted); font: 500 14px var(--font); cursor: pointer;
+  transition: background var(--dur-1), border-color var(--dur-1), color var(--dur-1), transform var(--dur-1) var(--ease-out); }
+.chips a:hover, .chips button:hover { color: var(--text); border-color: var(--text-dim); text-decoration: none; }
+.chips a:active, .chips button:active { transform: scale(.96); }
 .chips a.active, .chips button.active { background: var(--accent-soft); border-color: var(--accent); color: var(--text); text-decoration: none; }
 .avatar { display: inline-grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--accent-soft); color: var(--text); font: 600 13px var(--mono); flex: none; }
 .card-row { display: none; }
@@ -221,6 +252,37 @@ table.data tbody tr:hover { background: var(--bg-hover); }
 @media (max-width: 767px) {
   .fab { display: grid; place-items: center; position: fixed; right: 16px; bottom: calc(var(--tab-h, 62px) + var(--safe-bottom) + 14px); width: 56px; height: 56px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); font: 600 28px/1 var(--font); box-shadow: var(--shadow); z-index: 25; }
   .fab:hover { text-decoration: none; filter: brightness(1.05); }
+  .fab { transition: transform var(--dur-1) var(--ease-out); } .fab:active { transform: scale(.92); }
+}
+
+/* ---- motion ---- */
+@keyframes if-fade-in { from { opacity: 0; } }
+@keyframes if-rise-in { from { opacity: 0; transform: translateY(6px); } }
+@keyframes if-pop-in { from { opacity: 0; transform: translateY(-4px) scale(.98); } }
+@keyframes if-sheet-in { from { transform: translateY(100%); } }
+
+/* Route changes: only the main column cross-fades and rises; the navigation chrome stays perfectly still. */
+::view-transition-old(root), ::view-transition-new(root) { animation: none; }
+::view-transition-old(if-main) { animation: var(--dur-1) ease-in both if-vt-out; }
+::view-transition-new(if-main) { animation: var(--dur-2) var(--ease-out) both if-vt-in; }
+::view-transition-group(if-main) { animation-duration: var(--dur-2); }
+@keyframes if-vt-out { to { opacity: 0; } }
+@keyframes if-vt-in { from { opacity: 0; transform: translateY(8px); } }
+
+/* Content swapped in after a skeleton fades instead of snapping. */
+.page > :not(app-skeleton) { animation: if-fade-in var(--dur-2) var(--ease-out); }
+
+/* Native <dialog>s (confirm dialogs, command palette) and their backdrops animate in. */
+dialog[open] { animation: if-pop-in var(--dur-2) var(--ease-out); }
+dialog[open]::backdrop { animation: if-fade-in var(--dur-2) ease-out; }
+@media (max-width: 600px) { dialog.dlg[open] { animation: if-sheet-in .26s var(--ease-out); } }
+/* the page behind an open modal does not scroll */
+html:has(dialog[open]) { overflow: hidden; }
+@media (max-width: 1023px) { html.nav-locked { overflow: hidden; } }
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
+  .btn:active, .chips a:active, .chips button:active, .card.link:active, .card.link:hover { transform: none; }
 }
 
 /* never let long content force page-level horizontal scroll */

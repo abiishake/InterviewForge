@@ -21,7 +21,8 @@ export interface MenuItem { label: string; run: () => void; danger?: boolean; di
     }`,
   styles: [`
     :host { position: relative; display: inline-block; }
-    .menu { position: absolute; right: 0; top: calc(100% + 4px); z-index: 60; min-width: 200px; display: flex; flex-direction: column; padding: 4px; background: var(--bg-card); border: 1px solid var(--border-strong); border-radius: var(--radius); box-shadow: var(--shadow); }
+    .menu { position: absolute; right: 0; top: calc(100% + 4px); z-index: 60; min-width: 200px; display: flex; flex-direction: column; padding: 4px; background: var(--bg-card); border: 1px solid var(--border-strong); border-radius: var(--radius); box-shadow: var(--shadow);
+      transform-origin: top right; animation: if-pop-in var(--dur-1) var(--ease-out); }
     .item { text-align: left; padding: 10px 12px; min-height: 40px; border: 0; background: transparent; color: var(--text); border-radius: var(--radius-sm); font: 14px var(--font); cursor: pointer; }
     .item:hover:not(:disabled), .item:focus-visible { background: var(--bg-hover); }
     .item.danger { color: var(--danger); } .item:disabled { opacity: .5; cursor: not-allowed; }
