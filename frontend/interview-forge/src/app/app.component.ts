@@ -22,10 +22,12 @@ const GROUPS: NavGroup[] = [
   { title: 'Library', icon: 'book', links: [
     { label: 'Sections', path: '/sections', icon: 'layers' }, { label: 'Topics', path: '/topics', icon: 'hash' }, { label: 'Search', path: '/search', icon: 'search' },
     { label: 'Algorithms', path: '/algorithms', icon: 'code' }, { label: 'My content', path: '/mine', icon: 'folder' }, { label: 'Add question', path: '/questions/new', icon: 'plus-square' }] },
+  { title: 'Resume', icon: 'file', links: [{ label: 'Resume questions', path: '/resume', icon: 'file' }] },
   { title: 'Me', icon: 'user', links: [{ label: 'Notes', path: '/notes', icon: 'note' }, { label: 'My feedback', path: '/feedback', icon: 'inbox' }, { label: 'Account', path: '/account', icon: 'user' }] }
 ];
 const ADMIN: NavLink[] = [
   { label: 'Users', path: '/admin/users', icon: 'users' }, { label: 'Feedback', path: '/admin/feedback', icon: 'inbox' },
+  { label: 'Missing topics', path: '/admin/missing-topics', icon: 'flag' },
   { label: 'Import', path: '/admin/import', icon: 'upload' }, { label: 'Settings', path: '/admin/settings', icon: 'settings' },
   { label: 'Audit log', path: '/admin/audit', icon: 'history' }
 ];
@@ -58,7 +60,8 @@ const COLLAPSE_KEY = 'if-nav-collapsed';
           @if (auth.user()?.isAdmin) {
             <div class="group-title"><span class="lbl">Admin</span></div>
             @for (l of admin; track l.path) {
-              <a [routerLink]="l.path" routerLinkActive="active" ariaCurrentWhenActive="page" [attr.title]="mini() ? l.label : null"><app-icon [name]="l.icon" [size]="18" /><span class="lbl">{{ l.label }}</span></a>
+              <a [routerLink]="l.path" routerLinkActive="active" ariaCurrentWhenActive="page" [attr.title]="mini() ? l.label : null"><app-icon [name]="l.icon" [size]="18" /><span class="lbl">{{ l.label }}</span>
+                @if (l.path === '/admin/missing-topics' && missingTopics() > 0) { <span class="count" [attr.aria-label]="missingTopics() + ' open'">{{ missingTopics() }}</span> }</a>
             }
           }
         </nav>
@@ -222,7 +225,8 @@ export class AppComponent {
   private readonly url = signal(this.router.url);
   readonly groups = GROUPS;
   readonly admin = ADMIN;
-  readonly tabs = GROUPS.filter(g => g.title !== 'Me');
+  // Resume lives in the drawer (More) on phones to keep the tab bar at five entries.
+  readonly tabs = GROUPS.filter(g => g.title !== 'Me' && g.title !== 'Resume');
 
   /** User preference: keep the desktop sidebar collapsed to an icon rail. */
   readonly collapsed = signal(readCollapsed());
@@ -249,6 +253,8 @@ export class AppComponent {
 
   /** Due-now review count shown as a badge on the Review link; refreshed at most once a minute on navigation. */
   readonly reviewDue = signal(0);
+  /** Open missing-topic requests for administrators; refreshed with the review badge. */
+  readonly missingTopics = signal(0);
   private reviewFetchedAt = 0;
 
   /** Sign-in and first-run password change pages render without the application shell. */
@@ -313,6 +319,7 @@ export class AppComponent {
     if (!this.auth.user() || Date.now() - this.reviewFetchedAt < 60_000) return;
     this.reviewFetchedAt = Date.now();
     this.api.reviewOverview(true).subscribe({ next: r => this.reviewDue.set(r.dueNow), error: () => { this.reviewFetchedAt = 0; } });
+    if (this.auth.user()?.isAdmin) this.api.missingTopicCount().subscribe({ next: r => this.missingTopics.set(r.open), error: () => { /* badge is best effort */ } });
   }
 
   toggleCollapsed(): void {

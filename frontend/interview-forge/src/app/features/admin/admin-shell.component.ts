@@ -11,6 +11,7 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
       <nav class="tabs admin-tabs" aria-label="Administration">
         <a routerLink="users" routerLinkActive="active" ariaCurrentWhenActive="page">Users</a>
         <a routerLink="feedback" routerLinkActive="active" ariaCurrentWhenActive="page">Feedback</a>
+        <a routerLink="missing-topics" routerLinkActive="active" ariaCurrentWhenActive="page">Missing topics</a>
         <a routerLink="import" routerLinkActive="active" ariaCurrentWhenActive="page">Import</a>
         <a routerLink="settings" routerLinkActive="active" ariaCurrentWhenActive="page">Settings</a>
         <a routerLink="audit" routerLinkActive="active" ariaCurrentWhenActive="page">Audit log</a>

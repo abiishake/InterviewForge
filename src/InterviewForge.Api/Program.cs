@@ -23,6 +23,7 @@ builder.Logging.AddJsonConsole(o => { o.IncludeScopes = true; o.TimestampFormat 
 
 var importOptions = builder.Configuration.GetSection(ImportOptions.SectionName).Get<ImportOptions>() ?? new ImportOptions();
 builder.Services.AddSingleton(importOptions);
+builder.Services.AddSingleton(builder.Configuration.GetSection(InterviewForge.Application.Resumes.EmailOptions.SectionName).Get<InterviewForge.Application.Resumes.EmailOptions>() ?? new InterviewForge.Application.Resumes.EmailOptions());
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddHttpContextAccessor();
@@ -32,6 +33,7 @@ builder.Services.AddScoped<IPasswordService, PasswordService>();
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<LoginThrottle>();
+builder.Services.AddHostedService<MissingTopicDigestService>();
 builder.Services.AddSingleton<AccountSnapshotCache>();
 builder.Services.AddSingleton<IAccountSessionCache>(sp => sp.GetRequiredService<AccountSnapshotCache>());
 if (builder.Configuration.GetValue<bool>("Proxy:Enabled"))

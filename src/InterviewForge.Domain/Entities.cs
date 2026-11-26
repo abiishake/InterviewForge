@@ -285,3 +285,50 @@ public class DeletedSeed
     public string Kind { get; set; } = "";
     public string Key { get; set; } = "";
 }
+
+/// <summary>A resume uploaded by one account. Private to that account; administrators never read it.</summary>
+public class Resume
+{
+    public int Id { get; set; }
+    public string UserId { get; set; } = "";
+    public string Title { get; set; } = "";
+    public string FileName { get; set; } = "";
+    /// <summary>"pdf" or "tex".</summary>
+    public string FileKind { get; set; } = "";
+    /// <summary>Plain text extracted at upload. The original file is not stored.</summary>
+    public string ExtractedText { get; set; } = "";
+    public DateTime UploadedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    public List<ResumeSkill> Skills { get; set; } = new();
+}
+
+/// <summary>A skill detected in a resume. Matched to knowledge-base topics when the resume is viewed, so new topics show up automatically.</summary>
+public class ResumeSkill
+{
+    public int Id { get; set; }
+    public int ResumeId { get; set; }
+    public Resume Resume { get; set; } = null!;
+    /// <summary>Stable normalized key (catalog key, or normalized term for skills not in the catalog).</summary>
+    public string Key { get; set; } = "";
+    public string DisplayName { get; set; } = "";
+    public int Mentions { get; set; }
+}
+
+/// <summary>
+/// Administrator inbox entry: a skill found in resumes that the knowledge base does not cover.
+/// Aggregated per skill; it never records which account or resume asked for it.
+/// </summary>
+public class MissingTopicRequest
+{
+    public int Id { get; set; }
+    public string Key { get; set; } = "";
+    public string DisplayName { get; set; } = "";
+    public int RequestCount { get; set; }
+    public DateTime FirstRequestedAt { get; set; } = DateTime.UtcNow;
+    public DateTime LastRequestedAt { get; set; } = DateTime.UtcNow;
+    public MissingTopicStatus Status { get; set; } = MissingTopicStatus.Open;
+    public string? ResolvedBy { get; set; }
+    public DateTime? ResolvedAt { get; set; }
+    /// <summary>Set once the request was included in an administrator email digest.</summary>
+    public DateTime? EmailedAt { get; set; }
+}

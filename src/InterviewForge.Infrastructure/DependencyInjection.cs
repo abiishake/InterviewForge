@@ -1,4 +1,5 @@
 using InterviewForge.Application;
+using InterviewForge.Application.Resumes;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -15,6 +16,8 @@ public static class DependencyInjection
         services.AddDbContext<AppDbContext>(o => o.UseSqlite(cs, sql => sql.CommandTimeout(30)));
         services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<AppDbContext>());
         services.AddScoped<IUserClock, UserClock>();
+        services.AddSingleton<IPdfTextExtractor, PdfPigTextExtractor>();
+        services.AddSingleton<IEmailSender, SmtpEmailSender>();
         return services;
     }
 

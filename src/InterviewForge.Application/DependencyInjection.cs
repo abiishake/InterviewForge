@@ -3,6 +3,7 @@ using InterviewForge.Application.Content;
 using InterviewForge.Application.Import;
 using InterviewForge.Application.Plans;
 using InterviewForge.Application.Progress;
+using InterviewForge.Application.Resumes;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace InterviewForge.Application;
@@ -22,6 +23,9 @@ public static class DependencyInjection
         services.AddScoped<PlanService>();
         services.AddScoped<DashboardService>();
         services.AddScoped<IImportService, ImportService>();
+        services.AddScoped<ResumeService>();
+        services.AddScoped<MissingTopicService>();
+        services.AddScoped<MissingTopicDigest>();
         return services;
     }
 }

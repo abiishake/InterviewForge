@@ -112,6 +112,7 @@ docker compose start
 | **Interview mode** | Answer mentally → show answer → rate *Easy / Okay / Hard / Didn't know* (keys 1–4). Ratings drive spaced review |
 | **Review** | Due now, needs review, hard, recently incorrect (14 days), favorites |
 | **Algorithms** | 49 classics (arrays, strings, linked lists, stacks/queues, trees, graphs, searching, sorting, DP) with C# code, complexity, examples, interview questions and mistakes |
+| **Resume → Resume questions** | Upload resumes (PDF or LaTeX `.tex`, up to 5 MB, 20 per account). Each resume gets its own list of knowledge-base questions for the skills it mentions, grouped by skill. Private to you and separate from your plan; progress and notes are shared with the rest of the app |
 | **My content** | Create/rename/delete your own sections & topics; create/edit/delete questions with Markdown preview, tags and URLs |
 | **Settings** | Re-run the idempotent import; links to Swagger and health |
 
@@ -210,6 +211,8 @@ GET    /api/auth/config · GET /api/auth/me · POST /api/auth/register|login|log
 GET/PUT /api/account · POST /api/account/password · POST /api/account/sessions/revoke-others
 GET/POST /api/admin/users · GET/PUT/DELETE /api/admin/users/{id} · POST .../role|disable|enable|reset-password|revoke-sessions · GET .../progress
 GET/PUT /api/admin/settings · GET /api/admin/audit
+GET    /api/resumes · POST /api/resumes (multipart `file`) · GET/PUT/DELETE /api/resumes/{id}
+GET    /api/admin/missing-topics?status= · GET .../count · POST .../{id}/dismiss|added|reopen
 GET    /health · /health/live   (/swagger and /openapi/v1.json: Development, `Api__ExposeDocs=true`, or administrators)
 ```
 
@@ -235,7 +238,8 @@ Errors always use:
 - Markdown is rendered client-side through marked → DOMPurify; raw HTML/scripts/event handlers/iframes are stripped, only `http(s)`, `mailto` and in-app links survive, and external links open with `target="_blank" rel="noopener noreferrer"`.
 - Reference URLs are validated server-side (absolute http/https only — `javascript:`/`data:` rejected).
 - EF Core parameterizes all queries; LIKE wildcards in search input are escaped.
-- Request bodies are limited to 1 MB; field lengths are validated.
+- Request bodies are limited to 1 MB (resume uploads: 5 MB); field lengths are validated.
+- Resumes are visible only to the account that uploaded them. Only the extracted text is stored, never the original file. Administrators see skills missing from the knowledge base aggregated by skill and count, never who uploaded them or any resume text, and the email digest (optional, `Email__*` settings) contains the same.
 - Strict Content-Security-Policy, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` headers.
 - The container runs as the unprivileged `app` user. Bootstrap credentials are environment configuration, never source constants.
 - There is no email verification or email-based password recovery; an administrator resets passwords. Themes: light, dark or system (Account page). Keyboard shortcuts are listed under Administration > Import.

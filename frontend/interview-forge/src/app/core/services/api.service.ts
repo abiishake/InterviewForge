@@ -31,6 +31,14 @@ export class ApiService {
   registrationSetting() { return this.http.get<{ registration: 'Open' | 'Closed' }>('/api/admin/settings'); }
   setRegistration(registration: 'Open' | 'Closed') { return this.http.put<{ registration: 'Open' | 'Closed' }>('/api/admin/settings', { registration }); }
   audit(q: { target?: string; action?: string; page?: number; pageSize?: number } = {}) { return this.http.get<Paged<import('../models').AuditEntry>>('/api/admin/audit', { params: this.params({ ...q }) }); }
+  resumes() { return this.http.get<import('../models').ResumeListItem[]>('/api/resumes'); }
+  resume(id: number) { return this.http.get<import('../models').ResumeDetail>(`/api/resumes/${id}`); }
+  uploadResume(file: File) { const form = new FormData(); form.append('file', file, file.name); return this.http.post<import('../models').ResumeDetail>('/api/resumes', form); }
+  renameResume(id: number, title: string) { return this.http.put<import('../models').ResumeListItem>(`/api/resumes/${id}`, { title }); }
+  deleteResume(id: number) { return this.http.delete<void>(`/api/resumes/${id}`); }
+  missingTopics(status = '', page = 1, pageSize = 50) { return this.http.get<Paged<import('../models').MissingTopic>>('/api/admin/missing-topics', { params: this.params({ status, page, pageSize }) }); }
+  missingTopicCount() { return this.http.get<{ open: number }>('/api/admin/missing-topics/count', { context: new HttpContext().set(SKIP_ERROR_TOAST, true) }); }
+  setMissingTopic(id: number, action: 'dismiss' | 'added' | 'reopen') { return this.http.post<import('../models').MissingTopic>(`/api/admin/missing-topics/${id}/${action}`, {}); }
   adminProgress(id:string){return this.http.get<import('../models').AdminProgress>(`/api/admin/users/${id}/progress`);}
   private base = '/api';
 

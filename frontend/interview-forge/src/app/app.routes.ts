@@ -28,6 +28,8 @@ export const routes: Routes = [
   { path: 'algorithms/:slug', loadComponent: () => import('./features/algorithms/algorithm-detail.component').then(m => m.AlgorithmDetailComponent), title: 'Algorithm · InterviewForge' },
   { path: 'review', loadComponent: () => import('./features/review/review.component').then(m => m.ReviewComponent), title: 'Review · InterviewForge' },
   { path: 'interview', loadComponent: () => import('./features/interview/interview.component').then(m => m.InterviewComponent), title: 'Interview mode · InterviewForge' },
+  { path: 'resume', loadComponent: () => import('./features/resume/resume-list.component').then(m => m.ResumeListComponent), title: 'Resume questions · InterviewForge' },
+  { path: 'resume/:id', loadComponent: () => import('./features/resume/resume-detail.component').then(m => m.ResumeDetailComponent), title: 'Resume · InterviewForge' },
   { path: 'notes', loadComponent: () => import('./features/notes/notes.component').then(m => m.NotesComponent), title: 'My notes · InterviewForge' },
   { path: 'mine', loadComponent: () => import('./features/my-content/my-content.component').then(m => m.MyContentComponent), title: 'My content · InterviewForge' },
   { path: 'settings', redirectTo: 'admin/import' },

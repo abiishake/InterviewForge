@@ -38,6 +38,7 @@ const PATHS: Record<string, string> = {
   note: 'M5 3h14v18H5zM9 8h6M9 12h6M9 16h3',
   flag: 'M5 21V4M5 4h12l-2 4 2 4H5',
   folder: 'M3 6h6l2 2h10v11H3z',
+  file: 'M6 3h9l4 4v14H6zM14 3v5h5M9 13h6M9 17h6',
   grid: 'M4 4h7v7H4zM13 4h7v4h-7zM13 10h7v10h-7zM4 13h7v7H4z',
   layers: 'M12 3l9 5-9 5-9-5zM3 13l9 5 9-5',
   hash: 'M5 9h15M4 15h15M10 4L8 20M16 4l-2 16',

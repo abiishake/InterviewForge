@@ -78,3 +78,9 @@ export interface AuditEntry { id: number; at: string; actorName: string; action:
 export interface UserListQuery { search?: string; role?: string; status?: string; sort?: string; page?: number; pageSize?: number; }
 export type SaveAlgorithm = Pick<AlgorithmDetail, 'category'|'name'|'problemStatement'|'explanation'|'approach'|'timeComplexity'|'spaceComplexity'|'implementation'|'example'|'interviewQuestions'|'commonMistakes'>;
 export interface AdminProgress { progress: {questionId: number; question: string; status: string; reviewCount: number; isFavorite: boolean; nextReviewAt?: string}[]; plans: {id: number; name: string; status: string; durationDays: number}[]; activity: {questionId: number; kind: string; occurredAt: string}[]; }
+
+export interface ResumeListItem { id: number; title: string; fileName: string; fileKind: 'pdf' | 'tex'; uploadedAt: string; skillCount: number; matchedSkillCount: number; }
+export interface ResumeSkill { key: string; name: string; mentions: number; inKnowledgeBase: boolean; topics: TopicRef[]; questionCount: number; questions: QuestionSummary[]; }
+export interface ResumeDetail { id: number; title: string; fileName: string; fileKind: 'pdf' | 'tex'; uploadedAt: string; skills: ResumeSkill[]; totalQuestions: number; completedQuestions: number; }
+export type MissingTopicStatus = 'Open' | 'Added' | 'Dismissed';
+export interface MissingTopic { id: number; key: string; name: string; requestCount: number; firstRequestedAt: string; lastRequestedAt: string; status: MissingTopicStatus; resolvedBy?: string; resolvedAt?: string; emailedAt?: string; }
