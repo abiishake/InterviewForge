@@ -27,6 +27,9 @@ public interface IAppDbContext
     DbSet<DeletedSeed> DeletedSeeds { get; }
     DbSet<AuditLog> AuditLogs { get; }
     DbSet<AppSetting> AppSettings { get; }
+    DbSet<Resume> Resumes { get; }
+    DbSet<ResumeSkill> ResumeSkills { get; }
+    DbSet<MissingTopicRequest> MissingTopicRequests { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     Task<IAppTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default);

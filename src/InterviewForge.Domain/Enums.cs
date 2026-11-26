@@ -56,3 +56,10 @@ public enum ActivityKind
     NoteSaved = 2,
     Favorited = 3
 }
+
+public enum MissingTopicStatus
+{
+    Open = 0,
+    Added = 1,
+    Dismissed = 2
+}

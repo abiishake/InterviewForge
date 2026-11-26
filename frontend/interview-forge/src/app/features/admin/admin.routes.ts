@@ -9,6 +9,7 @@ export const adminRoutes: Routes = [
       { path: 'users', loadComponent: () => import('./admin-users.component').then(m => m.AdminUsersComponent), title: 'Users · InterviewForge' },
       { path: 'users/new', loadComponent: () => import('./admin-user-create.component').then(m => m.AdminUserCreateComponent), title: 'New user · InterviewForge' },
       { path: 'users/:id', loadComponent: () => import('./admin-user-detail.component').then(m => m.AdminUserDetailComponent), title: 'User · InterviewForge' },
+      { path: 'missing-topics', loadComponent: () => import('./admin-missing-topics.component').then(m => m.AdminMissingTopicsComponent), title: 'Missing topics · InterviewForge' },
       { path: 'feedback', loadComponent: () => import('./admin-feedback.component').then(m => m.AdminFeedbackComponent), title: 'Feedback review · InterviewForge' },
       { path: 'import', loadComponent: () => import('../settings/settings.component').then(m => m.SettingsComponent), title: 'Import · InterviewForge' },
       { path: 'settings', loadComponent: () => import('./admin-settings.component').then(m => m.AdminSettingsComponent), title: 'Settings · InterviewForge' },

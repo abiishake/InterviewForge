@@ -261,7 +261,8 @@ public sealed class UserAdminService(IAppDbContext db, ICurrentUser actor, ICloc
             progress = await db.UserProgress.CountAsync(x => x.UserId == id, ct),
             notes = await db.UserNotes.CountAsync(x => x.UserId == id, ct),
             plans = await db.Plans.CountAsync(x => x.UserId == id, ct),
-            feedback = await db.Feedback.CountAsync(x => x.UserId == id, ct)
+            feedback = await db.Feedback.CountAsync(x => x.UserId == id, ct),
+            resumes = await db.Resumes.CountAsync(x => x.UserId == id, ct)
         };
 
         // Shared contributions stay available to everyone; ownership moves to the acting administrator.
@@ -276,6 +277,8 @@ public sealed class UserAdminService(IAppDbContext db, ICurrentUser actor, ICloc
         await db.ActivityLogs.Where(x => x.UserId == id).ExecuteDeleteAsync(ct);
         await db.Plans.Where(x => x.UserId == id).ExecuteDeleteAsync(ct);
         await db.Feedback.Where(x => x.UserId == id).ExecuteDeleteAsync(ct);
+        await db.ResumeSkills.Where(x => x.Resume.UserId == id).ExecuteDeleteAsync(ct);
+        await db.Resumes.Where(x => x.UserId == id).ExecuteDeleteAsync(ct);
         await db.AccountRoles.Where(x => x.AccountId == id).ExecuteDeleteAsync(ct);
         await db.Accounts.Where(x => x.Id == id).ExecuteDeleteAsync(ct);
 

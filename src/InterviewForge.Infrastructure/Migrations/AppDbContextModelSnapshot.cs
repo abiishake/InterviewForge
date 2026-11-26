@@ -365,6 +365,54 @@ namespace InterviewForge.Infrastructure.Migrations
                     b.ToTable("DeletedSeeds");
                 });
 
+            modelBuilder.Entity("InterviewForge.Domain.MissingTopicRequest", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("EmailedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FirstRequestedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("LastRequestedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("RequestCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("ResolvedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ResolvedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Key")
+                        .IsUnique();
+
+                    b.HasIndex("Status", "LastRequestedAt");
+
+                    b.ToTable("MissingTopicRequests");
+                });
+
             modelBuilder.Entity("InterviewForge.Domain.Plan", b =>
                 {
                     b.Property<int>("Id")
@@ -604,6 +652,79 @@ namespace InterviewForge.Infrastructure.Migrations
                     b.HasIndex("TopicId");
 
                     b.ToTable("QuestionTopics");
+                });
+
+            modelBuilder.Entity("InterviewForge.Domain.Resume", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ExtractedText")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FileKind")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(260)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UploadedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "UploadedAt");
+
+                    b.ToTable("Resumes");
+                });
+
+            modelBuilder.Entity("InterviewForge.Domain.ResumeSkill", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Mentions")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ResumeId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ResumeId", "Key")
+                        .IsUnique();
+
+                    b.ToTable("ResumeSkills");
                 });
 
             modelBuilder.Entity("InterviewForge.Domain.Section", b =>
@@ -967,6 +1088,26 @@ namespace InterviewForge.Infrastructure.Migrations
                     b.Navigation("Topic");
                 });
 
+            modelBuilder.Entity("InterviewForge.Domain.Resume", b =>
+                {
+                    b.HasOne("InterviewForge.Domain.Account", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("InterviewForge.Domain.ResumeSkill", b =>
+                {
+                    b.HasOne("InterviewForge.Domain.Resume", "Resume")
+                        .WithMany("Skills")
+                        .HasForeignKey("ResumeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Resume");
+                });
+
             modelBuilder.Entity("InterviewForge.Domain.Topic", b =>
                 {
                     b.HasOne("InterviewForge.Domain.Section", "Section")
@@ -1019,6 +1160,11 @@ namespace InterviewForge.Infrastructure.Migrations
                     b.Navigation("References");
 
                     b.Navigation("Tags");
+                });
+
+            modelBuilder.Entity("InterviewForge.Domain.Resume", b =>
+                {
+                    b.Navigation("Skills");
                 });
 
             modelBuilder.Entity("InterviewForge.Domain.Section", b =>

@@ -32,6 +32,10 @@ public static class AuditActions
     public const string BootstrapRecovery = "bootstrap.recovery";
     public const string ContentForceDelete = "content.force_delete";
     public const string SeedRestore = "seed.restore";
+    public const string ResumeTopicDismiss = "resume_topic.dismiss";
+    public const string ResumeTopicMarkAdded = "resume_topic.mark_added";
+    public const string ResumeTopicReopen = "resume_topic.reopen";
+    public const string ResumeTopicAutoResolve = "resume_topic.auto_resolve";
 }
 
 /// <summary>Hashing and session-cache ports implemented by the API host.</summary>

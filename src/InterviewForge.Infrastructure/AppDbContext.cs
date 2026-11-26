@@ -29,6 +29,9 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<DeletedSeed> DeletedSeeds => Set<DeletedSeed>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
+    public DbSet<Resume> Resumes => Set<Resume>();
+    public DbSet<ResumeSkill> ResumeSkills => Set<ResumeSkill>();
+    public DbSet<MissingTopicRequest> MissingTopicRequests => Set<MissingTopicRequest>();
 
     public async Task<IAppTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
     {
@@ -139,6 +142,30 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         {
             e.HasIndex(x => x.Slug).IsUnique();
             e.HasIndex(x => new { x.Category, x.SortOrder });
+        });
+        b.Entity<Resume>(e =>
+        {
+            e.Property(x => x.UserId).HasMaxLength(100);
+            e.Property(x => x.Title).HasMaxLength(200);
+            e.Property(x => x.FileName).HasMaxLength(260);
+            e.Property(x => x.FileKind).HasMaxLength(8);
+            e.HasIndex(x => new { x.UserId, x.UploadedAt });
+            e.HasOne<Account>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+        b.Entity<ResumeSkill>(e =>
+        {
+            e.Property(x => x.Key).HasMaxLength(80);
+            e.Property(x => x.DisplayName).HasMaxLength(80);
+            e.HasIndex(x => new { x.ResumeId, x.Key }).IsUnique();
+            e.HasOne(x => x.Resume).WithMany(r => r.Skills).HasForeignKey(x => x.ResumeId).OnDelete(DeleteBehavior.Cascade);
+        });
+        b.Entity<MissingTopicRequest>(e =>
+        {
+            e.Property(x => x.Key).HasMaxLength(80);
+            e.Property(x => x.DisplayName).HasMaxLength(80);
+            e.Property(x => x.ResolvedBy).HasMaxLength(200);
+            e.HasIndex(x => x.Key).IsUnique();
+            e.HasIndex(x => new { x.Status, x.LastRequestedAt });
         });
     }
 
